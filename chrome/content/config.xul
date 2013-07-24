@@ -258,8 +258,12 @@
             <description value="deletes the next char" />
           </row>
           <row>
-            <textbox id="DeleteCharBackward" value="C-h" />
+            <textbox id="DeleteCharBackward" value="" />
             <description value="deletes the previous char" />
+          </row>
+          <row>
+            <textbox id="ElectricQuote" value="C-h" />
+            <description value="inserts a pair of quotes" />
           </row>
           <row>
             <textbox id="Undo" value="C-xu" />
