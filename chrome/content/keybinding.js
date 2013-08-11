@@ -121,21 +121,7 @@ Firemacs.Commands.Edit = {
         goDoCommand('cmd_deleteCharBackward');
     },
     ElectricQuote: function(e) {
-        var str = Components.classes["@mozilla.org/supports-string;1"]
-	    .createInstance(Components.interfaces.nsISupportsString);
-	str.data = '""';
-
-	var trans = Components.classes["@mozilla.org/widget/transferable;1"]
-	    .createInstance(Components.interfaces.nsITransferable);
-	trans.addDataFlavor("text/unicode");
-	trans.setTransferData("text/unicode",str, str.data.length * 2);
-
-	var clipid = Components.interfaces.nsIClipboard;
-	var clip = Components.classes["@mozilla.org/widget/clipboard;1"]
-	    .getService(clipid);
-	clip.setData(trans,null,clipid.kGlobalClipboard);
-
-        goDoCommand('cmd_paste');
+        this._sfun.insertText('""');
         goDoCommand('cmd_charPrevious');
     },
     Undo: function(e) {
@@ -307,8 +293,8 @@ Firemacs.CmdKey.Edit = {
     KillLineBackward: 'C-u',
     Paste: 'C-y',
     DeleteCharForward: 'C-d',
-    DeleteCharBackward: '',
-    ElectricQuote: 'C-h',
+    DeleteCharBackward: 'C-h',
+    ElectricQuote: 'C-xq',
     Undo: 'C-xu',
     NextWord: 'M-f',
     PreviousWord: 'M-b',
@@ -352,3 +338,4 @@ Firemacs.CmdKey.Menu = {
     PreviousCompletion: 'C-p',
     NextCompletion: 'C-n'
 };
+
