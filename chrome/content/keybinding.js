@@ -140,6 +140,9 @@ Firemacs.Commands.Edit = {
     },
     MoveBottom: function(e) {
         if (this._sfun.marked(e)) { goDoCommand('cmd_selectBottom'); } else { goDoCommand('cmd_moveBottom'); }
+    },
+    OpenLine: function(e) {
+        this._sfun.insertText('\n'); this._sfun.PreviousChar(e);
     }
 };
 
@@ -296,7 +299,8 @@ Firemacs.CmdKey.Edit = {
     DeleteWordForward: 'M-d',
     DeleteWordBackward: 'M-DEL',
     MoveTop: 'M-<',
-    MoveBottom: 'M->'
+    MoveBottom: 'M->',
+    OpenLine: 'C-o'
 };
 
 Firemacs.CmdKey.Common = {

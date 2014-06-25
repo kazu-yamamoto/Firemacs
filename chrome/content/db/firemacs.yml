@@ -565,3 +565,10 @@ keyx: C-xh
 body: goDoCommand('cmd_selectAll')
 desc: selects all
 type: 
+-
+name: OpenLine
+case: Edit
+keyx: C-o
+body: this._sfun.insertText('\n'); this._sfun.PreviousChar(e);
+desc: open one line
+type: 

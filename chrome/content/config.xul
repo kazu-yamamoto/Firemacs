@@ -289,6 +289,10 @@
             <textbox id="MoveBottom" value="M-&gt;" />
             <description value="moves to the bottom" />
           </row>
+          <row>
+            <textbox id="OpenLine" value="C-o" />
+            <description value="open one line" />
+          </row>
         </rows>
       </grid>
     </tabpanel>

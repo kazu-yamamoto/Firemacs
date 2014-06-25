@@ -79,7 +79,8 @@ FmxConfig._names = [
   'SavePage',
   'PreviousCompletion',
   'NextCompletion',
-  'SelectAll'
+  'SelectAll',
+  'OpenLine'
 ];
 
 FmxConfig._boolNames = [
