@@ -96,11 +96,11 @@ Firemacs.Commands.Edit = {
     EndOfLine: function(e) {
         if (this._sfun.marked(e)) { goDoCommand('cmd_selectEndLine'); } else { goDoCommand('cmd_endLine'); }
     },
-    SetMarkAlias: function(e) {
-        this._sfun.setMark(e);
-    },
     SetMark: function(e) {
-        this._sfun.setMark(e);
+        this._sfun.resetMark(e); this._sfun.setMark(e);
+    },
+    SetMarkAlias: function(e) {
+        this._sfun.resetMark(e); this._sfun.setMark(e);
     },
     KillRegion: function(e) {
         goDoCommand('cmd_cut'); this._sfun.resetMark(e);
@@ -282,8 +282,8 @@ Firemacs.CmdKey.Edit = {
     ArrowNextChar: 'right',
     BeggingOfLine: 'C-a',
     EndOfLine: 'C-e',
-    SetMarkAlias: 'C-SPC',
-    SetMark: 'C-i',
+    SetMark: 'C-SPC',
+    SetMarkAlias: 'C-i',
     KillRegion: 'C-w',
     KillLineForward: 'C-k',
     KillLineBackward: 'C-u',

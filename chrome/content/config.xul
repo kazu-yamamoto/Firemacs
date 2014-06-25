@@ -222,11 +222,11 @@
             <description value="moves to the end of the line" />
           </row>
           <row>
-            <textbox id="SetMarkAlias" value="C-SPC" />
+            <textbox id="SetMark" value="C-SPC" />
             <description value="puts the mark" />
           </row>
           <row>
-            <textbox id="SetMark" value="C-i" />
+            <textbox id="SetMarkAlias" value="C-i" />
             <description value="puts the mark" />
           </row>
           <row>

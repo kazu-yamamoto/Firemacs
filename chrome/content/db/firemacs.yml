@@ -265,17 +265,17 @@ body: if (this._sfun.marked(e)) { goDoCommand('cmd_selectEndLine'); } else { goD
 desc: moves to the end of the line
 type: 
 -
-name: SetMarkAlias
+name: SetMark
 case: Edit
 keyx: C-SPC
-body: this._sfun.setMark(e);
+body: this._sfun.resetMark(e); this._sfun.setMark(e);
 desc: puts the mark
 type: 
 -
-name: SetMark
+name: SetMarkAlias
 case: Edit
 keyx: C-i
-body: this._sfun.setMark(e);
+body: this._sfun.resetMark(e); this._sfun.setMark(e);
 desc: puts the mark
 type: 
 -
