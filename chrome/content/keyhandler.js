@@ -133,7 +133,8 @@ Firemacs.KeyHandler = {
 	    return true;
 	}
 
-	if (ch == ' ') {
+	// On Mac, ' ' is 96. I don't know why.
+	if (ch == ' ' || (ctrl && e.charCode == 96)) {
 	    ch = 'SPC';
 	}
 
