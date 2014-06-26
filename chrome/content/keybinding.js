@@ -123,6 +123,9 @@ Firemacs.Commands.Edit = {
     Undo: function(e) {
         goDoCommand('cmd_undo');
     },
+    OpenLine: function(e) {
+        this._sfun.insertText('\n'); this._sfun.PreviousChar(e);
+    },
     NextWord: function(e) {
         if (this._sfun.marked(e)) { goDoCommand('cmd_selectWordNext'); } else { goDoCommand('cmd_wordNext'); }
     },
@@ -140,9 +143,6 @@ Firemacs.Commands.Edit = {
     },
     MoveBottom: function(e) {
         if (this._sfun.marked(e)) { goDoCommand('cmd_selectBottom'); } else { goDoCommand('cmd_moveBottom'); }
-    },
-    OpenLine: function(e) {
-        this._sfun.insertText('\n'); this._sfun.PreviousChar(e);
     }
 };
 
@@ -294,13 +294,13 @@ Firemacs.CmdKey.Edit = {
     DeleteCharForward: 'C-d',
     DeleteCharBackward: 'C-h',
     Undo: 'C-xu',
+    OpenLine: 'C-o',
     NextWord: 'M-f',
     PreviousWord: 'M-b',
     DeleteWordForward: 'M-d',
     DeleteWordBackward: 'M-DEL',
     MoveTop: 'M-<',
-    MoveBottom: 'M->',
-    OpenLine: 'C-o'
+    MoveBottom: 'M->'
 };
 
 Firemacs.CmdKey.Common = {

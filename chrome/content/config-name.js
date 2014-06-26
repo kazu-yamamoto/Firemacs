@@ -46,6 +46,7 @@ FmxConfig._names = [
   'DeleteCharForward',
   'DeleteCharBackward',
   'Undo',
+  'OpenLine',
   'NextWord',
   'PreviousWord',
   'DeleteWordForward',
@@ -79,8 +80,7 @@ FmxConfig._names = [
   'SavePage',
   'PreviousCompletion',
   'NextCompletion',
-  'SelectAll',
-  'OpenLine'
+  'SelectAll'
 ];
 
 FmxConfig._boolNames = [
