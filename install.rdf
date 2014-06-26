@@ -6,13 +6,13 @@
   <Description about="urn:mozilla:install-manifest">
     <em:id>{e98b7313-167d-48c6-89be-bc514d6de8d9}</em:id>
     <em:unpack>false</em:unpack>
-    <em:version>4.4</em:version>
+    <em:version>4.5</em:version>
     <em:type>2</em:type>
     <em:targetApplication>
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
         <em:minVersion>1.5</em:minVersion>
-        <em:maxVersion>20.0a1</em:maxVersion>
+        <em:maxVersion>30</em:maxVersion>
       </Description>
     </em:targetApplication>
     <em:name>Firemacs</em:name>
