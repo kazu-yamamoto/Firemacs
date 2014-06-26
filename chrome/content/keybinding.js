@@ -118,7 +118,7 @@ Firemacs.Commands.Edit = {
         goDoCommand('cmd_deleteCharForward');
     },
     DeleteCharBackward: function(e) {
-        goDoCommand('cmd_deleteCharBackward');
+        goDoCommand('cmd_deleteCharBackward'); this._sfun.resetMark(e);
     },
     Undo: function(e) {
         goDoCommand('cmd_undo');

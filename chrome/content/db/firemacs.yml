@@ -317,7 +317,7 @@ type:
 name: DeleteCharBackward
 case: Edit
 keyx: C-h
-body: goDoCommand('cmd_deleteCharBackward');
+body: goDoCommand('cmd_deleteCharBackward'); this._sfun.resetMark(e);
 desc: deletes the previous char
 type: 
 -
