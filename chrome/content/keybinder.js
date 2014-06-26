@@ -122,7 +122,7 @@ Firemacs.Observer = {
 	return this;
     },
     addObserver: function() {
-	this._prefer.QueryInterface(Components.interfaces.nsIPrefBranch2);
+	this._prefer.QueryInterface(Components.interfaces.nsIPrefBranch);
 	this._prefer.addObserver('', this, false);
     },
     observe: function(aSubject, aTopic, aData) {
