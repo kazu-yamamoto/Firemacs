@@ -319,6 +319,13 @@ case: Edit
 keyx: C-h
 body: goDoCommand('cmd_deleteCharBackward'); this._sfun.resetMark(e);
 desc: deletes the previous char
+type:
+-
+name: ElectricQuote
+case: Edit
+keyx: C-xq
+body: this._sfun.insertText('""'); goDoCommand('cmd_charPrevious');
+desc: inserts a pair of quotes
 type: 
 -
 name: Undo

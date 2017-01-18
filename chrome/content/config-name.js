@@ -45,6 +45,7 @@ FmxConfig._names = [
   'Paste',
   'DeleteCharForward',
   'DeleteCharBackward',
+  'ElectricQuote',
   'Undo',
   'OpenLine',
   'NextWord',

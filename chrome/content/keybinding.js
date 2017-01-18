@@ -120,6 +120,10 @@ Firemacs.Commands.Edit = {
     DeleteCharBackward: function(e) {
         goDoCommand('cmd_deleteCharBackward'); this._sfun.resetMark(e);
     },
+    ElectricQuote: function(e) {
+        this._sfun.insertText('""');
+        goDoCommand('cmd_charPrevious');
+    },
     Undo: function(e) {
         goDoCommand('cmd_undo');
     },
@@ -293,6 +297,7 @@ Firemacs.CmdKey.Edit = {
     Paste: 'C-y',
     DeleteCharForward: 'C-d',
     DeleteCharBackward: 'C-h',
+    ElectricQuote: 'C-xq',
     Undo: 'C-xu',
     OpenLine: 'C-o',
     NextWord: 'M-f',

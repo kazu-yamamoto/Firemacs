@@ -262,6 +262,10 @@
             <description value="deletes the previous char" />
           </row>
           <row>
+            <textbox id="ElectricQuote" value="C-xq" />
+            <description value="inserts a pair of quotes" />
+          </row>
+          <row>
             <textbox id="Undo" value="C-xu" />
             <description value="executes undo" />
           </row>
