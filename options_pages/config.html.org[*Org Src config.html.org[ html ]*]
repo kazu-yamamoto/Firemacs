@@ -1,0 +1,10 @@
+<div id="menu" class="tabcontent">
+  <p>
+    <textbox id="PreviousCompletion" value="C-p" />
+    <label value="moves to the previous line" />
+  </p>
+  <p>
+    <textbox id="NextCompletion" value="C-n" />
+    <label value="moves to the next line" />
+  </p>
+</div>

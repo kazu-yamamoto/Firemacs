@@ -1,0 +1,514 @@
+* Introduction
+This document is a port of chrome/content/config.xul
+* Overall
+#+BEGIN_SRC html :noweb tangle :tangle config.html
+  <!DOCTYPE html>
+  <html>
+
+    <<config-head>>
+
+    <<config-body>>
+  
+  </html>
+#+END_SRC
+* TODO Head
+** Master Head
+#+NAME: config-head
+#+BEGIN_SRC html :noweb tangle
+  <head>
+    <title>Firemacs configuration</title>
+    <link rel="stylesheet" href="config.css">
+    <<head-commented-out>>
+    <script src="config.js"></script>
+    <script src="config-name.js"></script>
+  </head>
+#+END_SRC
+** Commented out
+This code was commented out but could be required. It appears to be related to submitting to the store or some other security or administrative mechanism.
+#+NAME: head-commented-out
+#+BEGIN_SRC html
+  <!--<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+  <xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" onload="FmxConfig.onload();">-->
+#+END_SRC
+** TODO move config.js and config-name.js to options_pages/
+** TODO what is FmxConfig.onload()?
+** TODO check stylesheets
+** TODO repath /skin/config.css to something that makes sense
+** TODO verify stylesheets
+** TODO move skin/config.css
+* Body
+** Master
+The overall layout follows Kazu's original design.
+#+NAME: config-body
+#+BEGIN_SRC html :noweb tangle
+      <body>
+        <form id="main">
+
+         <<main-glue>>
+
+          <<tab-about>>
+  <!--    -->
+          <<tab-option>>
+
+          <<tab-view>>
+
+          <<tab-edit>>
+
+          <<tab-common>>
+
+          <<tab-menu>>
+
+          <<main-footer>>
+
+
+        </form> 
+      </body>
+#+END_SRC
+
+** TODO Main glue
+See this [[https://www.w3schools.com/howto/howto_js_tabs.asp][example]] for creating tabs in Javascript CSS html
+#+NAME: main-glue
+#+BEGIN_SRC html
+  <div class="tab">
+    <button class="tablinks" onclick="openTab(e,'about')">About</button>
+    <button class="tablinks" onclick="openTab(e, 'option' )">Option</button>
+    <button class="tablinks" onclick="openTab(e,'view' )">View</button>
+    <button class="tablinks" onclick="openTab(e, 'edit')">Edit</button>
+    <button class="tablinks" onclick="openTab(e, 'common')">Common</button>
+    <button class="tablinks" onclick="openTab(e, 'menu')"> Menu</button>
+  </div>
+#+END_SRC
+*** TODO generate main-glue-js
+#+NAME: main-glue-js
+#+BEGIN_SRC javascript 
+  function openTab(event, tabName) {
+      var i, tabcontent, tablinks;
+      //get all elements with class="tabcontent" and hide them
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i=0; i<tabcontent.length; i++) {
+          tabcontent[i].style.display = "none";
+      };
+      // Get all elements with class="tablinks" and remoeve the
+      // class "active
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i=0; i<tablinks.length; i++) {
+          tablinks[i].className = tablinks[i].className.replace("active", "");
+      }
+
+      //Show the current tab and add an "active" class to the button
+      //that opened the tab
+      document.getElementById(tabName).style.display = "block";
+      event.currentTarget.className += " active";
+  }
+#+END_SRC
+** TODO tab-about
+#+NAME: tab-about
+#+BEGIN_SRC html
+    <div id="about" class="tabcontent">
+      <p>Firemacs was written by Kazu Yamamoto. Support was moved to <a href="https://github.com/firemacs">Github</a> in order to transition Firemacs to a WebExtension.</p>
+      <!--    
+              <p>The original home page is: http://www.mew.org/~kazu/proj/firemacs/</p> 
+      -->
+      <p />
+      <p>'M-' is 'C-['.</p>
+      <p>'ESC' or 'Alt' or 'Meta' can be used as 'M-' if checked in Option tab.</p>
+      <p />
+      <p>Unix: Alt is Alt, Meta is Meta.</p>
+      <p>Mac: Alt is Option, Meta is Apple. Option inserts an accent letter, so cannot be used.</p>
+      <p>Windows: Alt is Alt, Meta is Windows. To use Alt, set ui.key.menuAccessKey to 0.</p>
+      <p />
+      <p>Remove key symbols from forms to disable their key bindings.</p>
+      <p>Arrow keys are specified with 'up', 'down', 'right', and 'left'.</p>
+      <p>'C-M-' should be specified instead of 'M-C-'.</p>
+    </div>
+#+END_SRC
+** TODO tab-option 
+#+NAME: tab-option
+#+BEGIN_SRC html
+  <div id="option" class="tabcontent">
+    <p>These are high level global settings for Firemacs.</p>
+    <p>
+      <input type="checkbox" class="configvalue" id="UseEscape" value="true" />
+      <label>use ESC as 'M-' </label>
+    </p>
+    <p>
+      <input type="checkbox" class="configvalue" id="UseAlt" value="true" />
+      <label>use Alt as 'M-' </label>
+    </p>
+    <p>
+      <input type="checkbox" class="configvalue" id="UseMeta" value="false" />
+      <label>use Meta as 'M-' </label>
+    </p>
+    <p>
+      <input class="configvalue" id="XPrefix" value="C-x" />
+      <label>is the prefix key </label>
+    </p>
+    <p>
+      <input class="configvalue" id="AccessRegex" value="wiki" />
+      <label>URL regex to disable access keys </label>
+    </p>
+    <p>
+      <input class="configvalue" id="TurnoffRegex" value="" />
+      <label>URL regex to turn off Firemacs </label>
+    </p>
+    <p>
+      <input type="checkbox" class="configvalue" id="WalkForm" value="true" />
+      <label>allow to walk through forms </label>
+    </p>
+    <p>
+      <input type="checkbox" class="configvalue" id="EditOnly" value="false" />
+      <label>edit area only </label>
+    </p>
+  </div>
+#+END_SRC
+** TODO tab-edit
+There is some modal binding between editing and viewing for example =C-p= is =PreviousLine= when editing text and =ScrollLineUp= when viewing portions of a web page.
+#+NAME: tab-edit
+#+BEGIN_SRC html
+  <div id="edit" class="tabcontent">
+    <p>This tab contains many common Emacs commands for editing text. The are useful inside of fields containing editable text.</p>
+    <p>
+      <input class="configvalue" id="PreviousLine" value="C-p" />
+      <label>moves to the previous line/input </label>
+    </p>
+    <p>
+      <input class="configvalue" id="NextLine" value="C-n" />
+      <label>moves to the next line/input </label>
+    </p>
+    <p>
+      <input class="configvalue" id="PreviousChar" value="C-b" />
+      <label>moves to the previous char </label>
+    </p>
+    <p>
+      <input class="configvalue" id="NextChar" value="C-f" />
+      <label>moves to the next char </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ArrowPreviousLine" value="up" />
+      <label>moves to the previous line/input </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ArrowNextLine" value="down" />
+      <label>moves to the next line/input </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ArrowPreviousChar" value="left" />
+      <label>moves to the previous char </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ArrowNextChar" value="right" />
+      <label>moves to the next char </label>
+    </p>
+    <p>
+      <input class="configvalue" id="BeggingOfLine" value="C-a" />
+      <label>moves to the beg of the line </label>
+    </p>
+    <p>
+      <input class="configvalue" id="EndOfLine" value="C-e" />
+      <label>moves to the end of the line </label>
+    </p>
+    <p>
+      <input class="configvalue" id="SetMark" value="C-SPC" />
+      <label>puts the mark </label>
+    </p>
+    <p>
+      <input class="configvalue" id="SetMarkAlias" value="C-i" />
+      <label>puts the mark </label>
+    </p>
+    <p>
+      <input class="configvalue" id="KillRegion" value="C-w" />
+      <label>kills the region </label>
+    </p>
+    <p>
+      <input class="configvalue" id="KillLineForward" value="C-k" />
+      <label>kills the line forward </label>
+    </p>
+    <p>
+      <input class="configvalue" id="KillLineBackward" value="C-u" />
+      <label>kills the line backward </label>
+    </p>
+    <p>
+      <input class="configvalue" id="Paste" value="C-y" />
+      <label>pastes the copy buf </label>
+    </p>
+    <p>
+      <input class="configvalue" id="DeleteCharForward" value="C-d" />
+      <label>deletes the next char </label>
+    </p>
+    <p>
+      <input class="configvalue" id="DeleteCharBackward" value="C-h" />
+      <label>deletes the previous char </label>
+    </p>
+    <p>
+      <input class="configvalue" id="Undo" value="C-xu" />
+      <label>executes undo </label>
+    </p>
+    <p>
+      <input class="configvalue" id="OpenLine" value="C-o" />
+      <label>open one line </label>
+    </p>
+    <p>
+      <input class="configvalue" id="NextWord" value="M-f" />
+      <label>moves to the next word </label>
+    </p>
+    <p>
+      <input class="configvalue" id="PreviousWord" value="M-b" />
+      <label>moves to the previous word </label>
+    </p>
+    <p>
+      <input class="configvalue" id="DeleteWordForward" value="M-d" />
+      <label>deletes a word forward </label>
+    </p>
+    <p>
+      <input class="configvalue" id="DeleteWordBackward" value="M-DEL" />
+      <label>deletes a word backward </label>
+    </p>
+    <p>
+      <input class="configvalue" id="MoveTop" value="M-&lt;" />
+      <label>moves to the top </label>
+    </p>
+    <p>
+      <input class="configvalue" id="MoveBottom" value="M-&gt;" />
+      <label>moves to the bottom </label>
+    </p>
+  </div>
+#+END_SRC
+** TODO tab-view
+#+NAME:tab-view
+#+BEGIN_SRC html
+  <div id="view" class="tabcontent">
+    <p>These commands work on the "passive elements" of a web page. For example they are useful while reading content. And navigating a web page or the browser's tabs.</p>
+    <p>
+      <input class="configvalue" id="ScrollLineUp" value="C-p" />
+      <label>scrolls a line up </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ScrollLineDown" value="C-n" />
+      <label>scrolls a line down </label>
+    </p>
+    <p>
+      <input class="configvalue" id="PreviousTab" value="C-b" />
+      <label>moves to the previous tab </label>
+    </p>
+    <p>
+      <input class="configvalue" id="NextTab" value="C-f" />
+      <label>moves to the next tab </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollLineUp" value="k" />
+      <label>scrolls a line up </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollLineDown" value="j" />
+      <label>scrolls a line down </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollLeft" value="H" />
+      <label>scrolls left </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollRight" value="L" />
+      <label>scrolls right </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViPreviousTab" value="h" />
+      <label>moves to the previous tab </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViNextTab" value="l" />
+      <label>moves to the next tab </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollPageUp" value="b" />
+      <label>scrolls a page up </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollPageDown" value="u" />
+      <label>scrolls a page down </label>
+    </p>
+    <p>
+      <input class="configvalue" id="PreviousPage" value="B" />
+      <label>moves to the previous page </label>
+    </p>
+    <p>
+      <input class="configvalue" id="NextPage" value="F" />
+      <label>moves to the next page </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ReloadPage" value="R" />
+      <label>reloads the page </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollTop" value="&lt;" />
+      <label>scrolls to the top </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ViScrollBottom" value="&gt;" />
+      <label>scrolls to the bottom </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ScrollTop" value="M-&lt;" />
+      <label>scrolls to the top </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ScrollBottom" value="M-&gt;" />
+      <label>scrolls to the bottom </label>
+    </p>
+
+  </div>
+#+END_SRC
+** TODO tab-common
+#+NAME: tab-common
+#+BEGIN_SRC html
+  <div id="common" class="tabcontent">
+    <p>These settings relate to navigating around the browser and the web page</p>
+    <p>
+      <input class="configvalue" id="AllTabs" value="C-xb" />
+      <label>tabs overview with filter </label>
+    </p>
+    <p>
+      <input class="configvalue" id="SearchForward" value="C-s" />
+      <label>searches forward </label>
+    </p>
+    <p>
+      <input class="configvalue" id="SearchBackword" value="C-r" />
+      <label>searches backward </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ScrollPageUp" value="M-v" />
+      <label>scrolls a page up </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ScrollPageDown" value="C-v" />
+      <label>scrolls a page down </label>
+    </p>
+    <p>
+      <input class="configvalue" id="ResetMark" value="C-g" />
+      <label>resets the mark </label>
+    </p>
+    <p>
+      <input class="configvalue" id="JumpURLBar" value="C-xl" />
+      <label>moves to the URL bar </label>
+    </p>
+    <p>
+      <input class="configvalue" id="JumpSearchBar" value="C-xg" />
+      <label>moves to the search bar </label>
+    </p>
+    <p>
+      <input class="configvalue" id="FocusBody" value="C-x." />
+      <label>moves to the body </label>
+    </p>
+    <p>
+      <input class="configvalue" id="JumpInput" value="C-xt" />
+      <label>moves to the first input </label>
+    </p>
+    <p>
+      <input class="configvalue" id="JumpSubmit" value="C-xs" />
+      <label>moves to the first button </label>
+    </p>
+    <p>
+      <input class="configvalue" id="CmPreviousTab" value="C-M-b" />
+      <label>moves to the previous tab </label>
+    </p>
+    <p>
+      <input class="configvalue" id="CmNextTab" value="C-M-f" />
+      <label>moves to the next tab </label>
+    </p>
+    <p>
+      <input class="configvalue" id="CloseTab" value="C-xk" />
+      <label>closes the tab </label>
+    </p>
+    <p>
+      <input class="configvalue" id="OpenFile" value="C-xC-f" />
+      <label>opens a file </label>
+    </p>
+    <p>
+      <input class="configvalue" id="Copy" value="M-w" />
+      <label>copies the region </label>
+    </p>
+    <p>
+      <input class="configvalue" id="NextButton" value="M-n" />
+      <label>moves to the next button </label>
+    </p>
+    <p>
+      <input class="configvalue" id="PreviousButton" value="M-p" />
+      <label>moves to the previous button </label>
+    </p>
+    <p>
+      <input class="configvalue" id="KillAccessKeys" value="M-k" />
+      <label>disables access keys </label>
+    </p>
+    <p>
+      <input class="configvalue" id="NewLine" value="C-m" />
+      <label>generates return key code </label>
+    </p>
+    <p>
+      <input class="configvalue" id="CopyUrl" value="C-M-u" />
+      <label>copy url </label>
+    </p>
+    <p>
+      <input class="configvalue" id="CopyTitle" value="C-M-t" />
+      <label>copy title </label>
+    </p>
+    <p>
+      <input class="configvalue" id="CopyTitleAndUrl" value="C-M-b" />
+      <label>copy title and url </label>
+    </p>
+    <p>
+      <input class="configvalue" id="WebSearch" value="C-xC-e" />
+      <label>web search </label>
+    </p>
+    <p>
+      <input class="configvalue" id="MapSearch" value="C-xC-a" />
+      <label>map search </label>
+    </p>
+    <p>
+      <input class="configvalue" id="SavePage" value="C-xC-s" />
+      <label>save page </label>
+    </p>
+    <p>
+      <input class="configvalue" id="SelectAll" value="C-xh" />
+      <label>selects all </label>
+    </p>
+  </div>
+#+END_SRC
+** TODO tab-menu
+The =menu= tab shows key bindings for navigating through menus.
+#+NAME: tab-menu
+#+BEGIN_SRC html
+  <div id="menu" class="tabcontent">
+    <p>These setting manage navigation in menus</p>
+    <p>
+      <input class="configvalue" id="PreviousCompletion" value="C-p" />
+      <label>moves to the previous line</label>
+    </p>
+    <p>
+      <input class="configvalue" id="NextCompletion" value="C-n" />
+      <label>moves to the next line</label>
+    </p>
+  </div>
+#+END_SRC
+** TODO main-footer
+#+NAME: main-footer
+#+BEGIN_SRC html
+  <div id="footer">
+    <hr/>
+    <button oncommand="window.close();"/>Close</button>
+    <button oncommand="FmxConfig.save(); window.close();">Save</button>
+  </div>
+#+END_SRC
+*** TODO change oncommand to onClick
+Not done to keep from accidentally closing while working elsewhere.
+*** TODO Figure out FmxConfig.save() function
+* Notes
+** some useful regexes for converting xul to html
+** <row> to <p>
+row> p>
+** <textbox> to <input>
+textbox input class="configvalue"
+** <description> to <label>
+  + step 1
+  description value="\(.+\)" label>\1
+  + step 2
+  \(<label>.+\)/> \1</label>
+

@@ -1,0 +1,56 @@
+#+TITLE: Design Notes 2
+This looks at the existing code base...so maybe it is not so much design.
+* Calls to legacy API
+#+BEGIN_SRC shell :results output replace
+  grep -rl 'nsI' ../ | sed '/[#~]/d'
+#+END_SRC
+
+#+RESULTS:
+: ../chrome/content/keyhandler.js
+: ../chrome/content/subfunc.js
+: ../chrome/content/keybinder.js
+: ../chrome/content/config.js
+: ../chrome/content/status.js
+: ../components/firemacs-service.js
+
+* Project directory structure
+#+BEGIN_SRC sh :results replace :results raw replace 
+   tree ../  | sed '/[#~]/d'
+#+END_SRC
+
+#+RESULTS:
+../
+├── chrome
+│   ├── content
+│   │   ├── config.js
+│   │   ├── config-name.js
+│   │   ├── config.xul
+│   │   ├── db
+│   │   │   ├── config.xul
+│   │   │   ├── firemacs.yml
+│   │   │   └── make.hs
+│   │   ├── firemacs.js
+│   │   ├── firemacs.xul
+│   │   ├── init.js
+│   │   ├── keybinder.js
+│   │   ├── keybinding.js
+│   │   ├── keyhandler.js
+│   │   ├── statusbar.xul
+│   │   ├── status.js
+│   │   └── subfunc.js
+│   └── skin
+│       ├── config.css
+│       ├── icon16gray.png
+│       ├── icon16.png
+│       └── icon32.png
+├── chrome.manifest
+├── components
+│   └── firemacs-service.js
+├── design
+│   ├── design_notes1.org
+├── install.rdf
+├── legacy_readme.txt
+├── make.sh
+├── readme.md
+
+6 directories, 30 files

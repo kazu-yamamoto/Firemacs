@@ -1,0 +1,145 @@
+#+TITLE: Design Notes 1 for Firemacs Update
+* Architecture
+This document is based on Mozilla's [[https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Anatomy_of_a_WebExtension][Anatomy of a WebExtension]]. It describes a possible architecture for the revised Firemacs
+** TODO Background pages
+#+BEGIN_SRC shell :tangle ../background_pages/readme
+  The background page implements long running logic.
+#+END_SRC
+*** Premise
+Suppose the background pages hold only the configuration, i.e. the state for Firemacs.
+*** Messages
+The background page responds to message =getState=.
+
+The background page sends the message =currentState=.
+
+The background page responds to =updateState= from the Options Pages.
+** TODO Content scripts 
+#+BEGIN_SRC shell :tangle ../content_scripts/readme
+  Content scripts interact with web pages and exchange messages
+  with background pages. They cannot interact with page scripts.
+#+END_SRC
+
+It is envisioned that the bulk of the application will be in the content script because there is little state in the Firemacs application.
+
+*** Events 
+On page load the content script sends the message =getState= to the background page. 
+
+On page load the content script starts listening for the message =currentState= from the background page.
+
+The content script listens for keypress events.
+
+The content script executes commands on keypress events based on the =currentState=.
+** TODO Options Pages
+#+BEGIN_SRC shell :tangle ../options_pages/readme
+  Option pages provide a user interface for configuring the add-on.
+#+END_SRC
+
+The Options Pages will send the message =updateState= to the background pages.
+
+*** Browser Action Files
+ Browser action files add buttons to the toolbar. It is likely that these will not be used.
+** TODO Web Accessible Resources
+#+BEGIN_SRC shell :tangle ../web_accessible_resources/readme
+  Web Accessible Resources include HTML, CSS, and Javascript 
+  available to both content and page scripts. 
+#+END_SRC
+
+** Components not likely to be used
+*** Page Action Files
+#+BEGIN_SRC shell :tangle ../page_action_files/readme
+  Page Action Files add buttons to the address bar.
+#+END_SRC
+ It is likely that these will not be used.
+*** Sidebar Files
+#+BEGIN_SRC shell :tangle ../sidebar_files/readme
+  Sidebar Files add a side bar to the browser.
+#+END_SRC
+It is likely that these will not be used.
+* Component Sketches
+** TODO manifest.json
+The API for the [[https://developer.mozilla.org/en-US/Add-ons/WebExtensions/manifest.json][manifest]].
+
+*Notes about "commands"* It may be possible to put *all* the commands in the manifest and use the [[https://developer.mozilla.org/en-US/Add-ons/WebExtensions/API/commands][commands API]]. This might make it hard to update the configuration. So perhaps the state should be maintained in a background page. I think that the current code uses the =commands API= already.
+#+BEGIN_SRC javascript
+  {
+      "applications": {
+          "firemacs": {
+              //"id": "TODO",
+              //"strict_min_version": "TODO"
+          }
+      },
+
+      "background": {
+      "scripts": ["background-script.js"]
+      },
+
+      "browser_action": {
+          // not likely to be used
+      },
+
+      "commands": {
+          // all the commands could go here
+          // but probably should not
+      },
+
+      // "content_security_policy": default until proven otherwise
+
+      "content_scripts": [
+          {
+              // "exclude_matches": undefined,
+              "matches": [*],
+              "js": ["firemacs.js"]
+          }
+      ],
+
+      //"default_locale": undefined
+
+      //"description": "TODO"
+
+      "icons": {
+          "16": icon16.png,
+          "32": icon32.png,
+      },
+
+      // let manifest version reflect a version
+      // of Firefox contemporaneous with the release
+      // of Firemacs?
+      //"manifest_version": 53,
+
+      //"name": "TODO",
+
+      "page_action": {
+          // probably not used
+      },
+
+      //"permissions": "TODO",
+
+      //"version": "TODO",
+
+      //"web_accessible_resources": []
+  }
+#+END_SRC
+** TODO currentState
+The current state might use the =commands API= for functions.
+#+BEGIN_SRC javascript
+  var currentState = {
+      some_key_combination : some_function();
+  }
+#+END_SRC
+* TODO Description of Existing code base
+** chrome/skin
+Contains icons for Firemacs.
+** nsprefbranch
+Should replace with [[https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Comparison_with_XUL_XPCOM_extensions#Settings][settings API]]
+Also settings data data should be stored using the [[https://developer.mozilla.org/en-US/Add-ons/WebExtensions/API/storage][storage API]]
+*** TODO add [storage] to manifest =permissions= field
+* Tooling
+#+BEGIN_SRC shell :tangle build-directories.sh
+  #! /bin/sh
+  mkdir background_pages
+  mkdir content_scripts
+  mkdir options_pages
+  mkdir web_accessible_resources
+  mkdir page_action_files
+  mkdir sidebar_files
+#+END_SRC

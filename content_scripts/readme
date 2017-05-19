@@ -1,0 +1,2 @@
+Content scripts interact with web pages and exchange messages
+with background pages. They cannot interact with page scripts.
