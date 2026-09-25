@@ -6,6 +6,7 @@ implemented on the current Firefox (WebExtensions).
 - `defaults.js`: default options and keys (from `firemacs.yml`)
 - `options.html`, `options.js`: the options page
 - `text.js`: pure text operations for `<textarea>`/`<input>`
+- `visual.js`: visual (wrapped) lines of a `<textarea>` for C-n/C-p
 - `minibuffer.js`: the minibuffer (prompt, `<input>` and candidate list) at the bottom of the page
 - `content.js`: key handling and commands (content script, all frames)
 - `background.js`: the toolbar button toggles Firemacs on/off (gray icon when off),
@@ -31,6 +32,9 @@ In text fields:
 C-f C-b C-n C-p C-a C-e M-f M-b M-< M->, C-SPC (C-i),
 C-w C-k C-u C-y, C-d C-h M-d M-DEL, C-o, C-x u.
 M- is Alt/Option, ESC or C-[. Arrows extend the region while the mark is set.
+In a textarea, C-n/C-p move by visual (wrapped) lines, keeping the column in
+pixels, as the down/up keys do; at the end of a wrapped line they stop before
+the wrap, as Emacs does.
 In a single-line input, or at the end/beginning of a textarea,
 C-n/C-p move to the next/previous field.
 

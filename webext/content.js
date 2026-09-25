@@ -26,7 +26,8 @@
     let escPending = false;
     let lastCommand = null;   // for C-n/C-p goal column and C-k appending
     let lastState = null;     // where lastCommand left the caret
-    let goalColumn = 0;
+    let goalColumn = 0;       // for logical lines (<input>)
+    let goalX = null;         // for visual lines (<textarea>), in px
     let killRing = '';
     const marks = new WeakMap(); // element -> offset (text control) or true (contenteditable)
 
@@ -254,12 +255,25 @@
         }
         const t = el.value;
         const p = pointOf(el);
-        if (lastCommand !== Commands.NextLine &&
-            lastCommand !== Commands.PreviousLine) {
+        const continuing = [Commands.NextLine, Commands.PreviousLine,
+                            Commands.ArrowNextLine, Commands.ArrowPreviousLine]
+            .includes(lastCommand);
+        if (!continuing) {
             goalColumn = T.column(t, p);
+            goalX = null;
         }
-        const q = dir > 0 ? T.lineNext(t, p, goalColumn)
-                          : T.linePrev(t, p, goalColumn);
+        let q;
+        const visual = el.localName === 'textarea'
+            ? FiremacsVisual.lineMove(el, p, dir, goalX) : undefined;
+        if (visual === undefined) {
+            q = dir > 0 ? T.lineNext(t, p, goalColumn)
+                        : T.linePrev(t, p, goalColumn);
+        } else if (visual !== null) {
+            goalX = visual.x;
+            q = visual.q;
+        } else {
+            q = null;
+        }
         if (q !== null) {
             setPoint(el, q);
             return;

@@ -247,10 +247,47 @@ class Tests:
         c('walk form: C-n moves to end first',
           t('first input', 2, 'C-n', sel='#in1')[1:], [11, 11, 'in1'])
 
-        # Visual lines in a wrapped textarea: C-n moves by logical line.
-        c('narrow textarea C-n (logical line)',
-          t('a long line that wraps several times', 0, 'C-n', sel='#narrow')[:3],
-          ['a long line that wraps several times', 36, 36])
+        # Visual lines in a wrapped textarea: C-n/C-p must agree with the
+        # native down/up keys (arrows are native while the mark is not set).
+        # Firefox keeps its desired x across setSelectionRange(), so left
+        # and right are pressed first to make it take the caret position.
+        texts = [
+            'a long line that wraps several times in a narrow textarea',
+            'short\n\nline two is longer than the width\nend',
+            'abcdefghijklmnopqrstuvwxyz0123456789 word',
+            '日本語の文章は文字ごとに折り返されます。句読点も。',
+            'emoji \U0001F600\U0001F600 wrap \U0001F600 test of pairs',
+        ]
+        for text in texts:
+            units = text.encode('utf-16-le')     # offsets are UTF-16 in JS
+            n = len(units) // 2
+            unit = lambda i: int.from_bytes(units[2 * i:2 * i + 2], 'little')
+            # Offsets where a visual line starts after a wrap (not after a newline).
+            wraps = set(self.visual_line_starts('#narrow', text)) - {0} - {
+                i + 1 for i in range(n) if unit(i) == 0x0a}
+            diffs = []
+            for p in range(1, n):
+                if 0xdc00 <= unit(p) <= 0xdfff:
+                    continue                # inside a surrogate pair
+                for ours, native in [('C-n', 'down'), ('C-p', 'up')]:
+                    q_ours = t(text, p, ours, sel='#narrow')[1]
+                    q_native = t(text, p, 'left', 'right', native, sel='#narrow')[1]
+                    # The native caret can stay at the end of a wrapped line (a
+                    # wrap offset shown on the upper line); setSelectionRange()
+                    # cannot, so C-n/C-p stop just before it, as Emacs does.
+                    if q_native in wraps and q_ours == q_native - 1:
+                        continue
+                    if q_ours != q_native:
+                        diffs.append((p, ours, q_ours, q_native))
+            c('C-n/C-p match down/up: %r' % text[:20], diffs, [])
+        text = texts[1]
+        for p in [2, 5, 20]:
+            c('C-n C-n C-n match down x3 from %d' % p,
+              t(text, p, 'C-n', 'C-n', 'C-n', sel='#narrow')[1],
+              t(text, p, 'left', 'right', 'down', 'down', 'down', sel='#narrow')[1])
+            c('C-p C-p match up x2 from %d' % (p + 30),
+              t(text, p + 30, 'C-p', 'C-p', sel='#narrow')[1],
+              t(text, p + 30, 'left', 'right', 'up', 'up', sel='#narrow')[1])
 
         # contenteditable
         e = self.ce
@@ -680,6 +717,25 @@ class Tests:
         c('AccessRegex kills access keys',
           wd.js("return document.querySelectorAll('[accesskey]').length;"), 0)
         self.settings()
+
+    def visual_line_starts(self, selector, text):
+        """Offsets at the left edge of each visual line of the real textarea."""
+        return self.wd.js("""
+            const ta = document.querySelector(arguments[0]);
+            ta.value = arguments[1];
+            ta.scrollTop = 0;
+            const cs = getComputedStyle(ta);
+            const r = ta.getBoundingClientRect();
+            const left = r.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+            const top = r.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop);
+            const bottom = Math.min(r.bottom, top + ta.scrollHeight) - 3;
+            const starts = [];
+            for (let y = top + 3; y < bottom; y += 2) {
+                const p = document.caretPositionFromPoint(left + 0.3, y);
+                if (p && starts[starts.length - 1] !== p.offset) starts.push(p.offset);
+            }
+            return starts;
+        """, selector, text)
 
     def select_text(self, selector, text):
         """Put text into the element and select it, with no field focused."""
