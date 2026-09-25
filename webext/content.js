@@ -105,17 +105,35 @@
 
     const isVisible = (el) => el.getClientRects().length > 0;
 
-    const walkForm = (el, dir) => {
-        const fields = Array.from(document.querySelectorAll(
-            'textarea, input, [contenteditable]'))
-            .filter(f => (isTextControl(f) || f.isContentEditable) &&
-                         !f.disabled && !f.readOnly && isVisible(f));
-        const i = fields.indexOf(el);
-        if (fields.length < 2 || i < 0) {
-            return false;
+    const textFields = () => Array.from(document.querySelectorAll(
+        'textarea, input, [contenteditable]'))
+        .filter(f => (isTextControl(f) || f.isContentEditable) &&
+                     !f.disabled && !f.readOnly && isVisible(f));
+
+    const buttons = () => Array.from(document.querySelectorAll(
+        'button, input[type=submit], input[type=image], input[type=file], ' +
+        'input[type=button], input[type=reset]'))
+        .filter(b => !b.disabled && isVisible(b));
+
+    // Focus the element dir steps away from the focused one.
+    // With dir 0, stay if already on one of them, or go to the first.
+    const cycleFocus = (elements, dir, errmsg) => {
+        if (elements.length === 0) {
+            echo(errmsg);
+            return;
         }
-        fields[(i + dir + fields.length) % fields.length].focus();
-        return true;
+        const i = elements.indexOf(deepActiveElement());
+        const n = elements.length;
+        const next = (i < 0) ? (dir < 0 ? n - 1 : 0) : (i + dir + n) % n;
+        elements[next].focus();
+    };
+
+    const walkForm = (el, dir) => {
+        const fields = textFields();
+        if (fields.length < 2 || !fields.includes(el)) {
+            return;
+        }
+        cycleFocus(fields, dir);
     };
 
     ////////////////////////////////////////////////////////////////
@@ -391,7 +409,7 @@
         }
     };
 
-    // Default keys from chrome/content/db/firemacs.yml (Edit and part of Common).
+    // Edit keys from chrome/content/db/firemacs.yml.
     const EditBindings = {
         'C-p': 'PreviousLine',
         'C-n': 'NextLine',
@@ -418,10 +436,7 @@
         'M-d': 'DeleteWordForward',
         'M-DEL': 'DeleteWordBackward',
         'M-<': 'MoveTop',
-        'M->': 'MoveBottom',
-        'M-w': 'Copy',
-        'C-g': 'ResetMark',
-        'C-x h': 'SelectAll'
+        'M->': 'MoveBottom'
     };
 
     ////////////////////////////////////////////////////////////////
@@ -511,8 +526,6 @@
         ViScrollRight:    scrollByLines(1, 0),
         ViScrollPageUp:   scrollByPage(-1),
         ViScrollPageDown: scrollByPage(1),
-        ScrollPageUp:     scrollByPage(-1),
-        ScrollPageDown:   scrollByPage(1),
         ViScrollTop:      scrollToEdge(-1),
         ViScrollBottom:   scrollToEdge(1),
         ScrollTop:        scrollToEdge(-1),
@@ -526,7 +539,7 @@
         ReloadPage:       background('reload')
     };
 
-    // View keys from firemacs.yml, plus C-v/M-v of Common.
+    // View keys from firemacs.yml.
     const ViewBindings = {
         'C-p': 'ScrollLineUp',
         'C-n': 'ScrollLineDown',
@@ -540,8 +553,6 @@
         'l': 'ViNextTab',
         'b': 'ViScrollPageUp',
         'u': 'ViScrollPageDown',
-        'M-v': 'ScrollPageUp',
-        'C-v': 'ScrollPageDown',
         'B': 'PreviousPage',
         'F': 'NextPage',
         'R': 'ReloadPage',
@@ -549,6 +560,159 @@
         '>': 'ViScrollBottom',
         'M-<': 'ScrollTop',
         'M->': 'ScrollBottom'
+    };
+
+    ////////////////////////////////////////////////////////////////
+    //
+    // Common commands: in text fields and while viewing.
+    // el is the edited field, or null while viewing.
+    //
+
+    const selectedText = (el) => (el && isTextControl(el))
+        ? el.value.slice(el.selectionStart, el.selectionEnd)
+        : getSelection().toString();
+
+    const copyText = (text, msg) => {
+        kill(text, false);
+        echo(msg, 2000);
+    };
+
+    const copyTabInfo = (format, msg) => () => {
+        browser.runtime.sendMessage({command: 'tabInfo'}).then(tab => {
+            copyText(format(tab), msg);
+        });
+    };
+
+    const withSelection = (command) => (el) => {
+        const text = selectedText(el).trim();
+        if (text === '') {
+            echo('No selection');
+            return;
+        }
+        browser.runtime.sendMessage({command, arg: text});
+    };
+
+    // Emulates RET: page handlers see a synthetic Enter first; if none of
+    // them cancels it, do what Enter would do.  Synthetic key events are
+    // untrusted, so Firefox itself never acts on them.
+    const pressEnter = (el) => {
+        const target = el || deepActiveElement() || document.body;
+        const init = {key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+                      bubbles: true, cancelable: true, composed: true};
+        const down = new KeyboardEvent('keydown', init);
+        const accepted = target.dispatchEvent(down) &&
+                         target.dispatchEvent(new KeyboardEvent('keypress', init));
+        target.dispatchEvent(new KeyboardEvent('keyup', init));
+        if (!accepted) {
+            return;
+        }
+        if (el && el.localName === 'textarea') {
+            insertText(el, '\n');
+        } else if (el && isTextControl(el)) {
+            if (el.form) {
+                el.form.requestSubmit();
+            }
+        } else if (el) {
+            marks.delete(el);
+            document.execCommand('insertParagraph');
+        } else if (target !== document.body) {
+            target.click();
+        }
+    };
+
+    const CommonCommands = {
+        AllTabs: null,          // TODO: needs its own UI
+        SearchForward: null,    // TODO: needs its own UI
+        SearchBackword: null,   // TODO: needs its own UI
+        ScrollPageUp: scrollByPage(-1),
+        ScrollPageDown: scrollByPage(1),
+        ResetMark: (el) => {
+            if (el) {
+                Commands.ResetMark(el);
+            } else {
+                getSelection().removeAllRanges();
+                echo('Quit');
+            }
+        },
+        JumpURLBar: null,       // impossible: no API to focus the URL bar
+        JumpSearchBar: null,    // impossible: no API to focus the search bar
+        FocusBody: () => {
+            const el = deepActiveElement();
+            if (el && el.blur) {
+                el.blur();
+            }
+            window.top.focus();
+            echo('The body was focused');
+        },
+        JumpInput: () => cycleFocus(textFields(), 0, 'No input/text area'),
+        JumpSubmit: () => cycleFocus(buttons(), 0, 'No submit button'),
+        CmPreviousTab: background('moveTab', -1),
+        CmNextTab: background('moveTab', 1),
+        CloseTab: background('closeTab'),
+        OpenFile: null,         // impossible: no API to open the file dialog
+        Copy: (el) => {
+            if (el) {
+                Commands.Copy(el);
+            } else {
+                const text = selectedText(null);
+                if (text !== '') {
+                    kill(text, false);
+                }
+                getSelection().removeAllRanges();
+            }
+        },
+        NextButton: () => cycleFocus(buttons(), 1, 'No submit button'),
+        PreviousButton: () => cycleFocus(buttons(), -1, 'No submit button'),
+        KillAccessKeys: () => {
+            const nodes = document.querySelectorAll('[accesskey]');
+            nodes.forEach(n => n.removeAttribute('accesskey'));
+            echo(nodes.length + ' accesskeys were canceled');
+        },
+        NewLine: pressEnter,
+        CopyUrl: copyTabInfo(t => t.url, 'URL copied'),
+        CopyTitle: copyTabInfo(t => t.title, 'Title copied'),
+        CopyTitleAndUrl: copyTabInfo(t => t.title + '\n' + t.url, 'Title and URL copied'),
+        WebSearch: withSelection('webSearch'),
+        MapSearch: withSelection('mapSearch'),
+        SavePage: background('savePage'),
+        SelectAll: (el) => {
+            if (el) {
+                Commands.SelectAll(el);
+            } else if (document.body) {
+                getSelection().selectAllChildren(document.body);
+            }
+        }
+    };
+
+    // Common keys from firemacs.yml.  C-M-b was bound to both CmPreviousTab
+    // and CopyTitleAndUrl; the latter won in the original, and does here.
+    const CommonBindings = {
+        'C-x b': 'AllTabs',
+        'C-s': 'SearchForward',
+        'C-r': 'SearchBackword',
+        'M-v': 'ScrollPageUp',
+        'C-v': 'ScrollPageDown',
+        'C-g': 'ResetMark',
+        'C-x l': 'JumpURLBar',
+        'C-x g': 'JumpSearchBar',
+        'C-x .': 'FocusBody',
+        'C-x t': 'JumpInput',
+        'C-x s': 'JumpSubmit',
+        'C-M-f': 'CmNextTab',
+        'C-x k': 'CloseTab',
+        'C-x C-f': 'OpenFile',
+        'M-w': 'Copy',
+        'M-n': 'NextButton',
+        'M-p': 'PreviousButton',
+        'M-k': 'KillAccessKeys',
+        'C-m': 'NewLine',
+        'C-M-u': 'CopyUrl',
+        'C-M-t': 'CopyTitle',
+        'C-M-b': 'CopyTitleAndUrl',
+        'C-x C-e': 'WebSearch',
+        'C-x C-a': 'MapSearch',
+        'C-x C-s': 'SavePage',
+        'C-x h': 'SelectAll'
     };
 
     ////////////////////////////////////////////////////////////////
@@ -676,6 +840,13 @@
         prefix = '';
         escPending = false;
         const name = (el ? EditBindings : ViewBindings)[full];
+        const common = CommonCommands[CommonBindings[full]];
+        if (!name && common) {
+            common(el);
+            consume(e);
+            lastCommand = null;
+            return;
+        }
         if (!name) {
             if (full.startsWith('C-x ')) {
                 echo(full + ' is undefined');

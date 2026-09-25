@@ -44,11 +44,27 @@ const moveTab = async (tab, dir) => {
     }
 };
 
+// Saves the HTML only ("Web Page, complete" is not available to extensions).
+const savePage = (tab) => {
+    const name = (tab.title || 'page').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')
+          .trim().slice(0, 100);
+    return browser.downloads.download({url: tab.url, filename: name + '.html', saveAs: true});
+};
+
 const TabCommands = {
     moveTab,
     goBack:    (tab) => browser.tabs.goBack(tab.id),
     goForward: (tab) => browser.tabs.goForward(tab.id),
-    reload:    (tab) => browser.tabs.reload(tab.id)
+    reload:    (tab) => browser.tabs.reload(tab.id),
+    closeTab:  (tab) => browser.tabs.remove(tab.id),
+    tabInfo:   (tab) => Promise.resolve({title: tab.title, url: tab.url}),
+    webSearch: (tab, query) => browser.search.search({query, disposition: 'NEW_TAB'}),
+    mapSearch: (tab, query) => browser.tabs.create({
+        url: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query),
+        index: tab.index + 1,
+        openerTabId: tab.id
+    }),
+    savePage
 };
 
 browser.runtime.onMessage.addListener((msg, sender) => {

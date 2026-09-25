@@ -18,8 +18,22 @@ world</textarea>
 <textarea id="narrow" rows="6" style="width: 8em">a long line that wraps several times in a narrow textarea</textarea>
 <div id="ce" contenteditable="true">hello
 world</div>
+<form id="form"><input id="q" name="q"></form>
+<input id="chat" placeholder="handles Enter by itself">
+<button id="b1">one</button> <button id="b2">two</button>
+<a href="#" accesskey="x">access key x</a>
 <p id="log"></p>
 <script>
+  window.submitted = 0;
+  document.querySelector('#form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    window.submitted++;
+  });
+  window.chatEnter = 0;
+  document.querySelector('#chat').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); window.chatEnter++; }
+  });
+
   // Counts non-modifier keydown events that reach the page itself.
   window.pageKeys = 0;
   document.addEventListener('keydown', (e) => {

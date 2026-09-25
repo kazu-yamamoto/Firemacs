@@ -38,6 +38,12 @@ PREFS = {
     'datareporting.policy.dataSubmissionEnabled': False,
     'toolkit.telemetry.reportingpolicy.firstRun': False,
     'app.update.disabledForTesting': True,
+    # No traffic to the outside (web/map search tabs); localhost is never proxied.
+    'network.proxy.type': 1,
+    'network.proxy.http': '127.0.0.1',
+    'network.proxy.http_port': 9,
+    'network.proxy.ssl': '127.0.0.1',
+    'network.proxy.ssl_port': 9,
 }
 
 def free_port():
@@ -103,7 +109,11 @@ class Marionette:
                 actions.append({'type': 'keyUp', 'value': KEYS[m]})
         self.call('WebDriver:PerformActions', {'actions': [
             {'type': 'key', 'id': 'kbd', 'actions': actions}]})
-        self.call('WebDriver:ReleaseActions')
+        try:
+            self.call('WebDriver:ReleaseActions')
+        except RuntimeError as e:
+            if 'no such window' not in str(e):   # the keys closed the tab
+                raise
         time.sleep(0.05)
 
 
@@ -347,6 +357,86 @@ class Tests:
         wd.keys('R'); time.sleep(1)
         c('R reloads', wd.js('return typeof window.marker;'), 'undefined')
 
+    def run_common(self):
+        wd, c = self.wd, self.check
+        active = lambda: wd.js('return document.activeElement.id || document.activeElement.localName;')
+        blur = lambda: wd.js('document.activeElement.blur();')
+        self.goto('index.html')
+
+        blur(); wd.keys('C-x', 't'); c('C-x t', active(), 'in1')
+        wd.js("document.querySelector('#ta').focus();")
+        wd.keys('C-x', '.'); c('C-x .', active(), 'body')
+        blur(); wd.keys('M-n'); c('M-n', active(), 'b1')
+        wd.keys('M-n'); c('M-n M-n', active(), 'b2')
+        wd.keys('M-p'); c('M-p', active(), 'b1')
+        blur(); wd.keys('C-x', 's'); c('C-x s', active(), 'b1')
+        blur(); wd.keys('M-k')
+        c('M-k', wd.js("return document.querySelectorAll('[accesskey]').length;"), 0)
+
+        c('C-m in textarea', self.text('abcd', 2, 'C-m')[:3], ['ab\ncd', 3, 3])
+        self.text('', 0, 'C-m', sel='#q')
+        c('C-m submits a form', wd.js('return window.submitted;'), 1)
+        self.text('', 0, 'C-m', sel='#chat')
+        c('C-m reaches Enter handlers',
+          wd.js('return [window.chatEnter, window.submitted];'), [1, 1])
+
+        blur(); wd.keys('C-x', 'h')
+        c('C-x h outside fields', wd.js('return getSelection().toString().length > 100;'), True)
+        wd.keys('C-g'); c('C-g outside fields', wd.js('return getSelection().isCollapsed;'), True)
+        self.select_text('#log', 'selected words')
+        wd.keys('M-w')
+        c('M-w outside fields', self.text('', 0, 'C-y')[0], 'selected words')
+
+        url, title = wd.js('return [location.href, document.title];')
+        blur(); wd.keys('C-M-u'); time.sleep(0.3)
+        c('C-M-u', self.text('', 0, 'C-y')[0], url)
+        blur(); wd.keys('C-M-t'); time.sleep(0.3)
+        c('C-M-t', self.text('', 0, 'C-y')[0], title)
+        blur(); wd.keys('C-M-b'); time.sleep(0.3)
+        c('C-M-b', self.text('', 0, 'C-y')[0], title + '\n' + url)
+
+        # Tabs opened by searches; their URLs are checked, not their contents.
+        uris = lambda: self.chrome_js(
+            'return gBrowser.tabs.map(t => t.linkedBrowser.currentURI.spec);')
+        self.select_text('#log', 'firemacs')
+        wd.keys('C-x', 'C-e'); time.sleep(1.5)
+        tabs = uris()
+        c('C-x C-e opens a search tab',
+          [len(tabs), 'firemacs' in tabs[-1]], [2, True])
+        self.chrome_js('gBrowser.removeTab(gBrowser.tabs[1]);')
+        self.select_text('#log', 'Tokyo Station')
+        wd.keys('C-x', 'C-a'); time.sleep(1.5)
+        tabs = uris()
+        c('C-x C-a opens a map tab',
+          [len(tabs), tabs[-1].startswith('https://www.google.com/maps/search/')
+                      and 'Tokyo%20Station' in tabs[-1]], [2, True])
+        self.chrome_js('gBrowser.removeTab(gBrowser.tabs[1]);')
+        wd.js('getSelection().removeAllRanges();')
+        blur(); wd.keys('C-x', 'C-e'); time.sleep(0.5)
+        c('C-x C-e without selection', len(uris()), 1)
+
+        # C-M-f and C-x k
+        first = wd.call('WebDriver:GetWindowHandle')
+        second = wd.call('WebDriver:NewWindow', {'type': 'tab'})['handle']
+        wd.call('WebDriver:SwitchToWindow', {'handle': second})
+        self.goto('view.html')
+        selected = lambda: self.chrome_js('return gBrowser.tabs.indexOf(gBrowser.selectedTab);')
+        blur(); wd.keys('C-M-f'); time.sleep(0.3)
+        c('C-M-f', selected(), 0)
+        wd.call('WebDriver:SwitchToWindow', {'handle': second})
+        blur(); wd.keys('C-x', 'k'); time.sleep(0.5)
+        c('C-x k', len(uris()), 1)
+        wd.call('WebDriver:SwitchToWindow', {'handle': first})
+
+    def select_text(self, selector, text):
+        """Put text into the element and select it, with no field focused."""
+        self.wd.js("""
+            document.activeElement.blur();
+            const el = document.querySelector(arguments[0]);
+            el.textContent = arguments[1];
+            getSelection().selectAllChildren(el);
+        """, selector, text)
+
     def click_button(self):
         """Click the toolbar button and return [tooltip, gray icon?]."""
         wd = self.wd
@@ -396,6 +486,7 @@ def main():
         tests = Tests(mn, 'http://127.0.0.1:%d/' % http_port)
         tests.run()
         tests.run_view()
+        tests.run_common()
         print('\n%d passed, %d failed' % (tests.passed, tests.failed))
         return 1 if tests.failed else 0
     finally:

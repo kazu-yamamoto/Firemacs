@@ -24,17 +24,27 @@ implemented on the current Firefox (WebExtensions).
 
 In text fields:
 
-C-f C-b C-n C-p C-a C-e M-f M-b M-< M->, C-SPC (C-i) C-g C-x h,
-C-w M-w C-k C-u C-y, C-d C-h M-d M-DEL, C-o, C-x u.
+C-f C-b C-n C-p C-a C-e M-f M-b M-< M->, C-SPC (C-i),
+C-w C-k C-u C-y, C-d C-h M-d M-DEL, C-o, C-x u.
 M- is Alt/Option, ESC or C-[. Arrows extend the region while the mark is set.
 In a single-line input, or at the end/beginning of a textarea,
 C-n/C-p move to the next/previous field.
 
 Outside text fields (View):
 
-j/k C-n/C-p (line), H/L (left/right), u/b C-v/M-v (page),
+j/k C-n/C-p (line), H/L (left/right), u/b (page),
 </> M-</M-> (top/bottom), l/h C-f/C-b (next/previous tab),
 B/F (back/forward), R (reload).
 The scroll target is the scrollable box last clicked or focused,
 the document, or the largest scrollable box when the document does not scroll.
 Fields such as email, number and select keep their keys.
+
+Both (Common):
+
+C-v/M-v (page), C-g (quit), M-w (copy), C-x h (select all),
+C-x t (first text field), C-x s / M-n / M-p (buttons), C-x . (focus body),
+C-M-f (next tab), C-x k (close tab), M-k (kill access keys),
+C-m (RET), C-M-u / C-M-t / C-M-b (copy URL / title / both),
+C-x C-e (web search), C-x C-a (map search), C-x C-s (save page, HTML only).
+Not yet: C-s/C-r (search), C-x b (tab list).
+Impossible for extensions: C-x l, C-x g, C-x C-f.

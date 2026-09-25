@@ -27,6 +27,9 @@
     },
     "permissions": [
         "storage",
+        "tabs",
+        "search",
+        "downloads",
         "clipboardRead",
         "clipboardWrite"
     ],
