@@ -650,6 +650,36 @@ class Tests:
             browser.storage.local.get(null).then(s => done(s.keys));
         """}), {'NextChar': 'C-t'})
 
+        # Keys kept by Firefox (reserved keys) are warned about, not refused.
+        wd.call('WebDriver:Navigate', {'url': self.options_url() + '?os=mac'})
+        time.sleep(0.5)
+        c('mac: no reserved keys', [state('NextLine'),
+          wd.js("return document.getElementById('reserved').hidden;")], [['', True], True])
+        for os_name, quit_key, other in [('linux', 'C-q', 'C-Q'), ('win', 'C-Q', 'C-q')]:
+            wd.call('WebDriver:Navigate', {'url': self.options_url() + '?os=' + os_name})
+            time.sleep(0.5)
+            c(os_name + ': note shown', wd.js(
+                "return !document.getElementById('reserved').hidden &&"
+                " document.getElementById('reserved').textContent.includes('C-w (close tab)');"), True)
+            c(os_name + ': C-n warned', state('NextLine')[0].startswith(
+                'C-n is kept by Firefox for "new window"'), True)
+            c(os_name + ': C-w warned', state('KillRegion')[0].startswith('C-w is kept by Firefox'), True)
+            c(os_name + ': warnings counted', wd.js(
+                "return document.getElementById('status').textContent;"),
+              '4 keys do not reach Firemacs on this system')   # C-n twice, C-w, C-t saved above
+            put('key', 'NextChar', quit_key)
+            c(os_name + ': ' + quit_key + ' warned, can be saved', [state('NextChar')[0].startswith(
+                quit_key + ' is kept by Firefox for "quit"'), state('NextChar')[1]], [True, False])
+            put('key', 'NextChar', other)
+            c(os_name + ': ' + other + ' not warned', state('NextChar')[0], '')
+            put('key', 'NextChar', 'C-x C-w')
+            c(os_name + ': second key warned', state('NextChar')[0].startswith('C-w is kept'), True)
+            put('opt', 'XPrefix', 'C-t')
+            c(os_name + ': XPrefix warned', state('opt-XPrefix')[0].startswith('C-t is kept'), True)
+            c(os_name + ': key after XPrefix warned', state('Undo')[0].startswith('C-t is kept'), True)
+        wd.call('WebDriver:Navigate', {'url': self.options_url()})
+        time.sleep(0.5)
+
         # Applied to the page already open, without reloading it.
         wd.call('WebDriver:SwitchToWindow', {'handle': page})
         c('new key works in an open page', self.text(H, 0, 'C-t')[:3], [H, 1, 1])

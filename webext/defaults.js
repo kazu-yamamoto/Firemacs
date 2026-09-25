@@ -109,6 +109,25 @@ const FiremacsDefaults = {
         // OpenFile (C-x C-f), PreviousCompletion/NextCompletion (Menu).
     ],
 
+    // Keys Firefox keeps for itself (reserved keys): pages and extensions
+    // never see them.  Key by runtime.getPlatformInfo().os; the other Unix
+    // systems are like Linux.  From key[reserved="true"] of Firefox 156.
+    // On Mac they use Command, so Ctrl is free.
+    reservedKeys: {
+        win: {
+            'C-n': 'new window', 'C-t': 'new tab', 'C-w': 'close tab',
+            'C-W': 'close window', 'C-P': 'new private window', 'C-Q': 'quit'
+        },
+        linux: {
+            'C-n': 'new window', 'C-t': 'new tab', 'C-w': 'close tab',
+            'C-W': 'close window', 'C-P': 'new private window', 'C-q': 'quit'
+        }
+    },
+
+    reservedKeysFor: (os) =>
+        os === 'mac' || os === 'android' ? {}
+            : FiremacsDefaults.reservedKeys[os] || FiremacsDefaults.reservedKeys.linux,
+
     // 'C-x u', 'M-<', 'C-M-f', 'j', 'SPC', 'up', ...
     isValidKey: (key) => {
         const token = /^(C-)?(M-)?([\x21-\x7e]|SPC|DEL|up|down|left|right)$/;

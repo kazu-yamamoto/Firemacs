@@ -8,12 +8,14 @@
   :root {
     --bg: #fff; --fg: #1b1b1f; --muted: #6b6b75; --line: #e2e2e8;
     --field: #fff; --accent: #0b63ce; --error: #c5221f; --error-bg: #fdecea;
+    --warn: #8a5a00; --warn-bg: #fff4d6;
     --bar: rgba(255, 255, 255, .94);
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #1c1b22; --fg: #e8e8ee; --muted: #a0a0ab; --line: #3a3944;
       --field: #2b2a33; --accent: #6ea8ff; --error: #ff8a80; --error-bg: #3b2224;
+      --warn: #f2c14e; --warn-bg: #3a3120;
       --bar: rgba(28, 27, 34, .94);
     }
   }
@@ -36,7 +38,11 @@
   input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   input.invalid { border-color: var(--error); background: var(--error-bg); }
   .changed td.name::after { content: " *"; color: var(--accent); }
+  input.warning { border-color: var(--warn); background: var(--warn-bg); }
   .problem { color: var(--error); font-size: 12px; }
+  .problem.warning { color: var(--warn); }
+  .reserved { color: var(--warn); background: var(--warn-bg); padding: 8px 10px;
+              border-radius: 4px; margin: 12px 0 0; }
   label.check { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
   .opt { padding: 6px 0; border-bottom: 1px solid var(--line); }
   .opt .label { display: block; margin-bottom: 2px; }
@@ -67,6 +73,7 @@
     Write <code>C-M-</code>, not <code>M-C-</code>. An empty key disables the command.</p>
   <p class="note"><code>M-</code> is <code>C-[</code>, and also ESC, Alt (Option) or Meta (Command)
     if checked below. Keys starting with <code>C-x</code> follow the prefix key.</p>
+  <p id="reserved" class="reserved" hidden></p>
 
   <h2>Options</h2>
   <div id="options"></div>

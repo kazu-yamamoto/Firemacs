@@ -13,6 +13,8 @@ implemented on the current Firefox (WebExtensions).
   right click opens the options; tabs, history, search and downloads
 - `test/*.html`: test pages
 - `test/e2e.py`: end-to-end test via Marionette (Python standard library only)
+- `test/reserved_keys.py`: which keys reach Firemacs, with real OS input
+  (xdotool on Linux, keybd_event on Windows)
 
 ## Try it
 
@@ -67,11 +69,28 @@ Search is smart-case, over the visible text; all matches are highlighted.
 C-x b lists tabs, most recently used first; space-separated words filter them,
 and C-n/C-p (C-s/C-r, arrows) choose one.
 
+## Windows and Linux
+
+Firefox keeps some keys for itself (reserved keys): Ctrl+N (new window),
+Ctrl+T (new tab), Ctrl+W (close tab), Ctrl+Shift+W (close window),
+Ctrl+Shift+P (new private window), and Ctrl+Q on Linux or Ctrl+Shift+Q
+on Windows (quit).  Their key events never reach pages or extensions, and
+extension shortcuts ("commands") do not take them either, so no WebExtension
+can use them.  On Mac these are Command keys, and Ctrl is free.
+
+With the default keys, this means **C-n** (NextLine, ScrollLineDown) and
+**C-w** (KillRegion) do not work on Windows and Linux.  Every other default key
+was checked with real OS input on Windows 11 and Ubuntu 24.04 (Firefox 156):
+see `test/reserved_keys.py`.  The options page marks commands bound to reserved
+keys on those systems; bind them to other keys if you need them (the down arrow
+still moves to the next line natively).
+
 ## Options
 
 Right click the toolbar button, or about:addons, to open the options page.
 All options of the original Firemacs are available (UseEscape, UseAlt, UseMeta,
 XPrefix, AccessRegex, TurnoffRegex, WalkForm, EditOnly), and every key can be
 changed; an empty key disables the command.  Invalid keys, duplicates in a group
-and bad regular expressions are reported before saving.  Only the differences
+and bad regular expressions are reported before saving; keys reserved by Firefox
+on Windows and Linux are warned about.  Only the differences
 from the defaults are stored, and open pages pick up changes at once.

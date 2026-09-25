@@ -15,6 +15,15 @@
         keys: Object.fromEntries(D.commands.map(([, name, key]) => [name, key]))
     };
     let saved = await D.load();
+    // ?os=win or ?os=linux shows the page as on that system (for tests).
+    const os = new URLSearchParams(location.search).get('os') ||
+               (await browser.runtime.getPlatformInfo()).os;
+    const reserved = D.reservedKeysFor(os);
+    const reservedNote = (key) => {
+        const t = key.split(' ').find(k => k in reserved);
+        return t ? t + ' is kept by Firefox for "' + reserved[t] +
+                   '" on this system, so it never reaches Firemacs' : '';
+    };
 
     const normalizeKey = (key) => key.trim().replace(/\s+/g, ' ');
 
@@ -112,11 +121,17 @@
     };
 
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    let warnings = 0;      // keys kept by Firefox, counted by validate()
 
-    const setProblem = (input, problemId, message) => {
-        input.classList.toggle('invalid', message !== '');
+    // Returns 1 for an error; a warning (level 'warning') does not stop saving.
+    const setProblem = (input, problemId, message, level = 'error') => {
+        const error = message !== '' && level === 'error';
+        const warning = message !== '' && level === 'warning';
+        input.classList.toggle('invalid', error);
+        input.classList.toggle('warning', warning);
+        $(problemId).classList.toggle('warning', warning);
         $(problemId).textContent = message;
-        return message === '' ? 0 : 1;
+        return error ? 1 : 0;
     };
 
     // Returns the number of problems.
@@ -125,8 +140,12 @@
 
         const xprefix = options.XPrefix;
         const xprefixOk = D.isValidKey(xprefix) && !xprefix.includes(' ');
-        problems += setProblem($('opt-XPrefix'), 'problem-opt-XPrefix',
-                               xprefixOk ? '' : 'Not a single key, e.g. C-x or C-t');
+        if (xprefixOk && reservedNote(xprefix)) {
+            setProblem($('opt-XPrefix'), 'problem-opt-XPrefix', reservedNote(xprefix), 'warning');
+        } else {
+            problems += setProblem($('opt-XPrefix'), 'problem-opt-XPrefix',
+                                   xprefixOk ? '' : 'Not a single key, e.g. C-x or C-t');
+        }
         for (const name of ['AccessRegex', 'TurnoffRegex']) {
             let message = '';
             try {
@@ -153,9 +172,11 @@
                 }
             }
         }
+        warnings = 0;
         for (const [group, name] of D.commands) {
             const key = keys[name];
             let message = '';
+            let level = 'error';
             if (key !== '' && !D.isValidKey(key)) {
                 message = 'Invalid key';
             } else if (key !== '') {
@@ -165,9 +186,13 @@
                     message = 'Also bound to ' + others.join(', ');
                 } else if (prefixes.has(k)) {
                     message = k + ' is a prefix key';
+                } else if (reservedNote(k)) {
+                    message = reservedNote(k);
+                    level = 'warning';
+                    warnings++;
                 }
             }
-            problems += setProblem($('key-' + name), 'problem-' + name, message);
+            problems += setProblem($('key-' + name), 'problem-' + name, message, level);
             $('row-' + name).classList.toggle('changed', key !== saved.keys[name]);
         }
         return problems;
@@ -188,8 +213,11 @@
                    ' to fix before saving', true);
         } else if (message) {
             status(message);
+        } else if (dirty) {
+            status('Unsaved changes');
         } else {
-            status(dirty ? 'Unsaved changes' : '');
+            status(warnings ? warnings + (warnings === 1 ? ' key does' : ' keys do') +
+                   ' not reach Firemacs on this system' : '');
         }
     };
 
@@ -218,6 +246,15 @@
         fill(defaults);
         update(same(read(), saved) ? '' : 'Defaults restored; press Save to keep them');
     });
+
+    if (Object.keys(reserved).length > 0) {
+        $('reserved').textContent = 'On this system Firefox keeps ' +
+            Object.entries(reserved).map(([k, what]) => k + ' (' + what + ')').join(', ') +
+            ' for itself: pages and extensions ' +
+            'never see them, so commands bound to them (marked below) do not work. ' +
+            'Bind those commands to other keys if you need them.';
+        $('reserved').hidden = false;
+    }
 
     fill(saved);
     update();
