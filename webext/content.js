@@ -1143,12 +1143,19 @@
             escPending = false;
             return;
         }
+        if (runKey(k, el)) {
+            consume(e);
+        }
+    };
+
+    // Runs key k (e.g. 'C-f') in el (null while viewing).
+    // Returns true when the key was taken.
+    const runKey = (k, el) => {
         if (prefix === '' && prefixKeys.has(k)) {
             prefix = k + ' ';
             escPending = false;
             echo(k + '-');
-            consume(e);
-            return;
+            return true;
         }
         const full = prefix + k;
         prefix = '';
@@ -1157,35 +1164,33 @@
         const common = options.EditOnly ? null : CommonCommands[bindings.Common[full]];
         if (!name && common) {
             common(el);
-            consume(e);
             lastCommand = null;
-            return;
+            return true;
         }
         if (!name) {
+            lastCommand = null;
             if (full.includes(' ')) {
                 echo(full + ' is undefined');
-                consume(e);
+                return true;
             }
-            lastCommand = null;
-            return;
+            return false;
         }
         if (!el) {
             ViewCommands[name]();
-            consume(e);
             lastCommand = null;
-            return;
+            return true;
         }
         const command = Commands[name];
         if (!sameState(lastState, snapshot(el))) {
             lastCommand = null;     // something else happened in between
         }
-        if (command(el, e) === false) {
+        if (command(el) === false) {
             lastCommand = null;
-            return;
+            return false;
         }
-        consume(e);
         lastCommand = command;
         lastState = snapshot(el);
+        return true;
     };
 
     window.addEventListener('keydown', onKeyDown, true);
