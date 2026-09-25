@@ -64,7 +64,16 @@ const TabCommands = {
         index: tab.index + 1,
         openerTabId: tab.id
     }),
-    savePage
+    savePage,
+    // Most recently used first; the current tab last.
+    listTabs: async (tab) => {
+        const tabs = await browser.tabs.query({windowId: tab.windowId, hidden: false});
+        return tabs
+            .sort((a, b) => (a.id === tab.id) - (b.id === tab.id) ||
+                            b.lastAccessed - a.lastAccessed)
+            .map(t => ({id: t.id, title: t.title, url: t.url}));
+    },
+    activateTab: (tab, id) => browser.tabs.update(id, {active: true})
 };
 
 browser.runtime.onMessage.addListener((msg, sender) => {

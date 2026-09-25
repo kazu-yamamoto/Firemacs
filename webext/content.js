@@ -620,10 +620,382 @@
         }
     };
 
+    ////////////////////////////////////////////////////////////////
+    //
+    // Incremental search (C-s/C-r).
+    //
+    // window.find() cannot be used: while the minibuffer <input> has the
+    // focus, it searches the <input>.  So the visible text of the page is
+    // indexed and searched here.  Matches are shown with the CSS Custom
+    // Highlight API, and the current one is selected on exit.
+    // Smart case: case-sensitive only when the query has upper case.
+    //
+
+    const mini = FiremacsMinibuffer;
+    let lastSearch = '';
+
+    const saveSelection = () => {
+        const sel = getSelection();
+        return sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    };
+
+    const setSelection = (range) => {
+        const sel = getSelection();
+        sel.removeAllRanges();
+        if (range) {
+            sel.addRange(range);
+        }
+    };
+
+    const SKIP_TAGS = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'TEMPLATE'];
+
+    // {text, lower, segments: [{node, start}]}; '\n' separates blocks.
+    const buildIndex = () => {
+        const blocks = new Map();
+        const visible = new Map();
+        const blockOf = (el) => {
+            if (!blocks.has(el)) {
+                const d = getComputedStyle(el).display;
+                const inline = (d === 'inline' || d === 'contents') && el.parentElement;
+                blocks.set(el, inline ? blockOf(el.parentElement) : el);
+            }
+            return blocks.get(el);
+        };
+        const isVisibleText = (el) => {
+            if (!visible.has(el)) {
+                visible.set(el, el.checkVisibility({visibilityProperty: true}));
+            }
+            return visible.get(el);
+        };
+        const root = document.body || document.documentElement;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode: (n) => {
+                const p = n.parentElement;
+                return (p && !SKIP_TAGS.includes(p.tagName) && isVisibleText(p))
+                    ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+            }
+        });
+        const segments = [];
+        let text = '';
+        let block = null;
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const b = blockOf(n.parentElement);
+            if (block !== null && b !== block) {
+                text += '\n';
+            }
+            block = b;
+            segments.push({node: n, start: text.length});
+            text += n.data;
+        }
+        const lower = text.toLowerCase();
+        return {text, lower: lower.length === text.length ? lower : null, segments};
+    };
+
+    const pointAt = (index, pos) => {
+        const segs = index.segments;
+        let lo = 0;
+        let hi = segs.length - 1;
+        while (lo < hi) {
+            const mid = (lo + hi + 1) >> 1;
+            if (segs[mid].start <= pos) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        const seg = segs[lo];
+        return [seg.node, Math.min(Math.max(pos - seg.start, 0), seg.node.length)];
+    };
+
+    const rangeOf = (index, [start, end]) => {
+        const r = document.createRange();
+        r.setStart(...pointAt(index, start));
+        r.setEnd(...pointAt(index, end));
+        return r;
+    };
+
+    const MAX_MATCHES = 10000;
+
+    const findAll = (index, query) => {
+        const sensitive = query !== query.toLowerCase() || index.lower === null;
+        const hay = sensitive ? index.text : index.lower;
+        const q = sensitive ? query : query.toLowerCase();
+        const found = [];
+        if (q === '' || index.segments.length === 0) {
+            return found;
+        }
+        for (let i = hay.indexOf(q); i >= 0 && found.length < MAX_MATCHES;
+             i = hay.indexOf(q, i + 1)) {
+            found.push([i, i + q.length]);
+        }
+        return found;
+    };
+
+    // The first match starting after point (or the last one before it).
+    const matchFrom = (index, found, point, backward) => {
+        const after = (m) => rangeOf(index, m)
+            .compareBoundaryPoints(Range.START_TO_START, point) >= 0;
+        let lo = 0;
+        let hi = found.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (after(found[mid])) {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        const i = backward ? lo - 1 : lo;
+        return (i >= 0 && i < found.length) ? i : -1;
+    };
+
+    // Where a search starts: the selection, or the top of the viewport.
+    const searchOrigin = () => {
+        const range = saveSelection();
+        if (range) {
+            return range;
+        }
+        const r = document.createRange();
+        const pos = document.caretPositionFromPoint(1, 1);
+        if (pos && pos.offsetNode) {
+            r.setStart(pos.offsetNode, pos.offset);
+        } else {
+            r.selectNodeContents(document.body || document.documentElement);
+            r.collapse(true);
+        }
+        return r;
+    };
+
+    const HIGHLIGHT_CSS =
+        '::highlight(firemacs-match) { background-color: #ff6; color: #000; }\n' +
+        '::highlight(firemacs-current) { background-color: #f93; color: #000; }';
+    let highlightStyle = null;
+
+    const highlight = (all, current) => {
+        const registry = CSS.highlights;
+        if (!registry) {
+            return;
+        }
+        if (!highlightStyle || !highlightStyle.isConnected) {
+            highlightStyle = document.createElement('style');
+            highlightStyle.textContent = HIGHLIGHT_CSS;
+            (document.head || document.documentElement).appendChild(highlightStyle);
+        }
+        registry.set('firemacs-match', new Highlight(...all));
+        registry.set('firemacs-current', current ? new Highlight(current) : new Highlight());
+    };
+
+    const clearHighlight = () => {
+        if (CSS.highlights) {
+            CSS.highlights.delete('firemacs-match');
+            CSS.highlights.delete('firemacs-current');
+        }
+    };
+
+    const scrollToRange = (range) => {
+        const rect = range.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight ||
+            rect.left < 0 || rect.right > window.innerWidth) {
+            const node = range.startContainer;
+            const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+            el.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'});
+        }
+    };
+
+    const isearch = (backward) => {
+        const saved = {x: scrollX, y: scrollY, range: saveSelection()};
+        const origin = searchOrigin();
+        const index = buildIndex();
+        let found = [];
+        let current = -1;
+        let failing = false;
+        let wrapped = false;
+
+        const show = () => {
+            mini.setPrompt((failing ? 'Failing ' : '') + (wrapped ? 'Wrapped ' : '') +
+                           'I-search' + (backward ? ' backward' : '') + ': ');
+            // Highlight the matches near the current one only.
+            const near = found.slice(Math.max(current - 500, 0), current + 500);
+            const range = current >= 0 ? rangeOf(index, found[current]) : null;
+            highlight(near.map(m => rangeOf(index, m)), range);
+            // The match is selected on exit only: while the minibuffer has the
+            // focus, the inactive selection would paint over the highlight.
+            if (range) {
+                scrollToRange(range);
+            }
+        };
+
+        // The query changed: search again from the origin.
+        const research = (query) => {
+            found = findAll(index, query);
+            current = matchFrom(index, found, origin, backward);
+            failing = query !== '' && current < 0;
+            wrapped = false;
+            show();
+        };
+
+        // C-s/C-r: the next match; after a failure, wrap around.
+        const repeat = (back) => {
+            if (mini.value() === '') {
+                if (lastSearch === '') {
+                    return;
+                }
+                mini.setValue(lastSearch);
+                research(lastSearch);
+                if (back === backward) {
+                    return;
+                }
+            }
+            if (found.length === 0) {
+                backward = back;
+                show();
+                return;
+            }
+            if (failing && back === backward) {
+                current = back ? found.length - 1 : 0;
+                failing = false;
+                wrapped = true;
+            } else if (current < 0) {
+                current = back ? found.length - 1 : 0;
+                failing = false;
+            } else {
+                const next = current + (back ? -1 : 1);
+                failing = next < 0 || next >= found.length;
+                if (!failing) {
+                    current = next;
+                }
+            }
+            backward = back;
+            show();
+        };
+
+        const finish = () => {
+            clearHighlight();
+            if (mini.value() !== '') {
+                lastSearch = mini.value();
+            }
+        };
+
+        mini.open('', {
+            escape: 'accept',
+            onInput: research,
+            onKey: (name) => {
+                if (name === 'C-s' || name === 'C-r') {
+                    repeat(name === 'C-r');
+                    return true;
+                }
+                return false;
+            },
+            onAccept: () => {
+                finish();
+                // Like the find bar: a matched link gets the focus.
+                const range = current >= 0 ? rangeOf(index, found[current]) : null;
+                const node = range && range.startContainer;
+                const el = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+                mini.close((el && el.closest('a[href]')) || null);
+                if (range) {
+                    setSelection(range);
+                }
+            },
+            onCancel: () => {
+                finish();
+                mini.close();
+                setSelection(saved.range);
+                scrollTo(saved.x, saved.y);
+            },
+            onBlur: finish
+        });
+        show();
+    };
+
+    ////////////////////////////////////////////////////////////////
+    //
+    // Switching tabs (C-x b), like ido-switch-buffer:
+    // most recently used first, filtered by space-separated words.
+    //
+
+    const switchTab = async () => {
+        const tabs = await browser.runtime.sendMessage({command: 'listTabs'});
+        let shown = tabs;
+        let index = 0;
+        const render = () => {
+            mini.setItems(shown.map(t => ({text: t.title || t.url, sub: t.url})), index);
+            mini.setPrompt('Switch to tab' + (shown.length ? '' : ' (no match)') + ': ');
+        };
+        mini.open('', {
+            escape: 'cancel',
+            onInput: (query) => {
+                const words = query.toLowerCase().split(/\s+/).filter(w => w !== '');
+                shown = tabs.filter(t => {
+                    const hay = (t.title + ' ' + t.url).toLowerCase();
+                    return words.every(w => hay.includes(w));
+                });
+                index = 0;
+                render();
+            },
+            onKey: (name) => {
+                const n = shown.length;
+                if (n === 0) {
+                    return false;
+                }
+                if (['C-n', 'down', 'C-s'].includes(name)) {
+                    index = (index + 1) % n;
+                } else if (['C-p', 'up', 'C-r'].includes(name)) {
+                    index = (index - 1 + n) % n;
+                } else {
+                    return false;
+                }
+                render();
+                return true;
+            },
+            onAccept: () => {
+                const tab = shown[index];
+                mini.close();
+                if (tab) {
+                    browser.runtime.sendMessage({command: 'activateTab', arg: tab.id});
+                }
+            },
+            onCancel: () => mini.close()
+        });
+        render();
+    };
+
+    // Keys typed into the minibuffer.  Its <input> is edited with the
+    // Edit commands, except C-n/C-p.
+    const minibufferKey = (e) => {
+        const h = mini.handlers();
+        let name = e.key === 'Enter' ? 'RET'
+                 : (e.key === 'Escape' && !e.ctrlKey) ? 'ESC'
+                 : keyName(e);
+        if (name === 'C-m') {
+            name = 'RET';
+        } else if (name === 'C-[') {
+            name = 'ESC';
+        }
+        if (name === null) {
+            return;
+        }
+        if (name === 'RET' || name === 'C-g' || name === 'ESC') {
+            e.preventDefault();
+            const accept = name === 'RET' || (name === 'ESC' && h.escape === 'accept');
+            accept ? h.onAccept() : h.onCancel();
+            return;
+        }
+        if (h.onKey && h.onKey(name)) {
+            e.preventDefault();
+            return;
+        }
+        const edit = EditBindings[name];
+        if (edit && edit !== 'NextLine' && edit !== 'PreviousLine') {
+            e.preventDefault();
+            Commands[edit](mini.input());
+        }
+    };
+
     const CommonCommands = {
-        AllTabs: null,          // TODO: needs its own UI
-        SearchForward: null,    // TODO: needs its own UI
-        SearchBackword: null,   // TODO: needs its own UI
+        AllTabs: () => { switchTab(); },
+        SearchForward: () => isearch(false),
+        SearchBackword: () => isearch(true),
         ScrollPageUp: scrollByPage(-1),
         ScrollPageDown: scrollByPage(1),
         ResetMark: (el) => {
@@ -803,6 +1175,14 @@
         if (!enabled) {
             return;
         }
+        if (mini.isFocused()) {
+            // Keep the page's shortcuts away from the minibuffer.
+            e.stopImmediatePropagation();
+            if (e.isTrusted && !e.isComposing && e.keyCode !== 229) {
+                minibufferKey(e);
+            }
+            return;
+        }
         if (!e.isTrusted || e.isComposing || e.keyCode === 229) {
             return;                         // IME is converting
         }
@@ -875,6 +1255,13 @@
     };
 
     window.addEventListener('keydown', onKeyDown, true);
+    for (const type of ['keypress', 'keyup']) {
+        window.addEventListener(type, (e) => {
+            if (mini.isFocused()) {
+                e.stopImmediatePropagation();
+            }
+        }, true);
+    }
 
     const setEnabled = (value) => {
         enabled = value !== false;

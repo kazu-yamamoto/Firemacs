@@ -4,9 +4,10 @@ A prototype to see whether the Edit keybindings of Firemacs can be
 implemented on the current Firefox (WebExtensions).
 
 - `text.js`: pure text operations for `<textarea>`/`<input>`
+- `minibuffer.js`: the minibuffer (prompt, `<input>` and candidate list) at the bottom of the page
 - `content.js`: key handling and commands (content script, all frames)
 - `background.js`: the toolbar button toggles Firemacs on/off (gray icon when off)
-- `test/index.html`, `test/view.html`, `test/app.html`: test pages
+- `test/*.html`: test pages
 - `test/e2e.py`: end-to-end test via Marionette (Python standard library only)
 
 ## Try it
@@ -46,5 +47,15 @@ C-x t (first text field), C-x s / M-n / M-p (buttons), C-x . (focus body),
 C-M-f (next tab), C-x k (close tab), M-k (kill access keys),
 C-m (RET), C-M-u / C-M-t / C-M-b (copy URL / title / both),
 C-x C-e (web search), C-x C-a (map search), C-x C-s (save page, HTML only).
-Not yet: C-s/C-r (search), C-x b (tab list).
+C-s/C-r (incremental search), C-x b (switch tab).
 Impossible for extensions: C-x l, C-x g, C-x C-f.
+
+Minibuffer (C-s/C-r, C-x b):
+
+The input is a real `<input>`, so IME works, and Edit keys work in it.
+RET accepts, C-g cancels (C-s/C-r restores the scroll position),
+ESC accepts a search and cancels C-x b.
+C-s/C-r go to the next/previous match, and wrap around after a failure.
+Search is smart-case, over the visible text; all matches are highlighted.
+C-x b lists tabs, most recently used first; space-separated words filter them,
+and C-n/C-p (C-s/C-r, arrows) choose one.

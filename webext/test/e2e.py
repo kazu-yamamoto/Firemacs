@@ -25,9 +25,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 EXT = os.path.dirname(HERE)
 FIREFOX = '/Applications/Firefox.app/Contents/MacOS/firefox'
 
-KEYS = {'C': '', 'M': '',
-        'ESC': '', 'DEL': '', 'SPC': ' ',
-        'up': '', 'down': '', 'left': '', 'right': ''}
+KEYS = {'C': '\ue009', 'M': '\ue00a', 'RET': '\ue006',
+        'ESC': '\ue00c', 'DEL': '\ue003', 'SPC': ' ',
+        'up': '\ue013', 'down': '\ue015', 'left': '\ue012', 'right': '\ue014'}
 
 PREFS = {
     'marionette.port': 0,          # replaced below
@@ -98,7 +98,7 @@ class Marionette:
         """Send chords such as 'C-f', 'M-<', 'C-x', 'u', 'ESC', 'M-DEL'."""
         actions = []
         for chord in chords:
-            parts = [chord] if chord in KEYS else chord.split('-')
+            parts = [chord] if chord in KEYS or len(chord) == 1 else chord.split('-')
             mods, key = parts[:-1], parts[-1]
             key = KEYS.get(key, key)
             for m in mods:
@@ -428,6 +428,126 @@ class Tests:
         c('C-x k', len(uris()), 1)
         wd.call('WebDriver:SwitchToWindow', {'handle': first})
 
+    def run_minibuffer(self):
+        wd, c = self.wd, self.check
+        # The current match: the highlight while searching, the selection after.
+        found = lambda: wd.js("""
+            const h = CSS.highlights.get('firemacs-current');
+            const s = getSelection();
+            const r = (h && h.size) ? [...h][0] : (s.isCollapsed ? null : s.getRangeAt(0));
+            if (!r) return null;
+            const n = r.startContainer;
+            return [r.toString(), (n.nodeType === 1 ? n : n.parentElement).closest('[id]').id];
+        """)
+        # The minibuffer is the only <div> that can get the focus.
+        opened = lambda: wd.js("return document.activeElement.localName === 'div';")
+        start = lambda: wd.js("""
+            document.activeElement.blur();
+            getSelection().removeAllRanges();
+            scrollTo(0, 0);
+        """)
+
+        self.goto('search.html')
+        start(); wd.keys('C-s')
+        c('C-s opens the minibuffer', opened(), True)
+        wd.keys(*'beta')
+        c('C-s beta', found(), ['beta', 'p2'])
+        wd.keys('RET')
+        c('RET closes', [opened(), found()], [False, ['beta', 'p2']])
+
+        start(); wd.keys('C-s', *'alpha')
+        c('C-s alpha', found(), ['alpha', 'p1'])
+        wd.keys('C-s'); c('C-s again', found(), ['alpha', 'p3'])
+        wd.keys('C-s'); c('smart case: alpha matches Alpha', found(), ['Alpha', 'p4'])
+        wd.keys('C-s'); c('failing search keeps the match', found(), ['Alpha', 'p4'])
+        wd.keys('C-s'); c('wraps around', found(), ['alpha', 'p1'])
+        wd.keys('C-r'); c('C-r at the first match fails', found(), ['alpha', 'p1'])
+        wd.keys('C-r'); c('C-r again wraps to the last', found(), ['Alpha', 'p4'])
+        wd.keys('C-r'); c('C-r goes back', found(), ['alpha', 'p3'])
+        wd.keys('RET')
+
+        start(); wd.keys('C-s', *'Alpha')
+        c('smart case: Alpha is case-sensitive', found(), ['Alpha', 'p4'])
+        wd.keys('RET')
+
+        start(); wd.keys('C-s', 'C-s')
+        c('C-s C-s repeats the last search', found(), ['Alpha', 'p4'])
+        wd.keys('RET')
+
+        start(); wd.keys('C-r', *'alpha')
+        c('C-r from the top finds nothing', found(), None)
+        wd.keys('C-g')
+
+        start(); wd.keys('C-s', *'alphx', 'C-h', 'a')
+        c('C-h edits the minibuffer', found(), ['alpha', 'p1'])
+        wd.keys('C-a', 'C-k', *'three')
+        c('C-a C-k edit the minibuffer', found(), ['three', 'p3'])
+        wd.keys('RET')
+
+        start(); wd.keys('C-s', *'日本語')
+        c('C-s Japanese', found(), ['日本語', 'p6'])
+        wd.keys('ESC')
+        c('ESC accepts', [opened(), found()], [False, ['日本語', 'p6']])
+
+        start(); wd.keys('C-s', *'bottomword')
+        c('C-s scrolls to the match', wd.js('return scrollY > 1000;'), True)
+        wd.keys('C-g')
+        c('C-g restores scroll and selection',
+          [opened(), wd.js('return scrollY;'), found()], [False, 0, None])
+
+        wd.js("document.querySelector('#ta').focus();")
+        wd.keys('C-s', *'beta', 'C-g')
+        c('C-g restores the focus', wd.js('return document.activeElement.id;'), 'ta')
+
+        start(); wd.keys('C-s', *'linktarget', 'RET')
+        c('RET on a link focuses it', wd.js('return document.activeElement.id;'), 'link')
+
+        start(); wd.js('window.pageKeys = 0;')
+        wd.keys('C-s', *'jkl', 'C-h', 'RET')
+        c('minibuffer keys hidden from page', wd.js('return window.pageKeys;'), 0)
+
+        # C-x b
+        first = wd.call('WebDriver:GetWindowHandle')
+        self.goto('index.html')
+        handles = [first]
+        for page in ['view.html', 'app.html']:
+            h = wd.call('WebDriver:NewWindow', {'type': 'tab'})['handle']
+            wd.call('WebDriver:SwitchToWindow', {'handle': h})
+            self.goto(page)
+            handles.append(h)
+        selected = lambda: self.chrome_js('return gBrowser.tabs.indexOf(gBrowser.selectedTab);')
+        blur = lambda: wd.js('document.activeElement.blur();')
+
+        blur(); wd.keys('C-x', 'b'); time.sleep(0.3)
+        c('C-x b opens the minibuffer', opened(), True)
+        wd.keys('RET'); time.sleep(0.3)
+        c('C-x b RET: the previous tab', selected(), 1)
+
+        wd.call('WebDriver:SwitchToWindow', {'handle': handles[1]})
+        blur(); wd.keys('C-x', 'b'); time.sleep(0.3)
+        wd.keys(*'app-like', 'RET'); time.sleep(0.3)
+        c('C-x b filters', selected(), 2)
+
+        wd.call('WebDriver:SwitchToWindow', {'handle': handles[2]})
+        blur(); wd.keys('C-x', 'b'); time.sleep(0.3)
+        wd.keys(*'test prototype', 'RET'); time.sleep(0.3)
+        c('C-x b: every word must match', selected(), 0)
+
+        wd.call('WebDriver:SwitchToWindow', {'handle': handles[0]})
+        blur(); wd.keys('C-x', 'b'); time.sleep(0.3)
+        wd.keys('C-n', 'RET'); time.sleep(0.3)
+        c('C-x b C-n: the second candidate', selected(), 1)
+
+        wd.call('WebDriver:SwitchToWindow', {'handle': handles[1]})
+        blur(); wd.keys('C-x', 'b'); time.sleep(0.3)
+        wd.keys('C-g'); time.sleep(0.3)
+        c('C-x b C-g', [opened(), selected()], [False, 1])
+
+        for h in handles[1:]:
+            wd.call('WebDriver:SwitchToWindow', {'handle': h})
+            wd.call('WebDriver:CloseWindow')
+        wd.call('WebDriver:SwitchToWindow', {'handle': first})
+
     def select_text(self, selector, text):
         """Put text into the element and select it, with no field focused."""
         self.wd.js("""
@@ -487,6 +607,7 @@ def main():
         tests.run()
         tests.run_view()
         tests.run_common()
+        tests.run_minibuffer()
         print('\n%d passed, %d failed' % (tests.passed, tests.failed))
         return 1 if tests.failed else 0
     finally:

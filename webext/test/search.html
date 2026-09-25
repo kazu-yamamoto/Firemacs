@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Firemacs search test</title>
+<style>
+  body { font: 14px sans-serif; margin: 16px; }
+  #spacer { height: 3000px; }
+</style>
+</head>
+<body>
+<p id="p1">alpha one</p>
+<p id="p2">beta two</p>
+<p id="p3">alpha three</p>
+<p id="p4">Alpha four</p>
+<p id="p5"><a id="link" href="#linked">linktarget</a></p>
+<p id="p6">日本語の検索</p>
+<textarea id="ta" rows="2">text field</textarea>
+<div id="spacer"></div>
+<p id="p7">bottomword</p>
+<script>
+  window.pageKeys = 0;
+  document.addEventListener('keydown', (e) => {
+    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) window.pageKeys++;
+  });
+</script>
+</body>
+</html>
