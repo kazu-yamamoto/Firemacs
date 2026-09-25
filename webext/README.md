@@ -6,7 +6,7 @@ implemented on the current Firefox (WebExtensions).
 - `text.js`: pure text operations for `<textarea>`/`<input>`
 - `content.js`: key handling and commands (content script, all frames)
 - `background.js`: the toolbar button toggles Firemacs on/off (gray icon when off)
-- `test/index.html`: a test page
+- `test/index.html`, `test/view.html`, `test/app.html`: test pages
 - `test/e2e.py`: end-to-end test via Marionette (Python standard library only)
 
 ## Try it
@@ -22,8 +22,19 @@ implemented on the current Firefox (WebExtensions).
 
 ## Keys
 
+In text fields:
+
 C-f C-b C-n C-p C-a C-e M-f M-b M-< M->, C-SPC (C-i) C-g C-x h,
 C-w M-w C-k C-u C-y, C-d C-h M-d M-DEL, C-o, C-x u.
 M- is Alt/Option, ESC or C-[. Arrows extend the region while the mark is set.
 In a single-line input, or at the end/beginning of a textarea,
 C-n/C-p move to the next/previous field.
+
+Outside text fields (View):
+
+j/k C-n/C-p (line), H/L (left/right), u/b C-v/M-v (page),
+</> M-</M-> (top/bottom), l/h C-f/C-b (next/previous tab),
+B/F (back/forward), R (reload).
+The scroll target is the scrollable box last clicked or focused,
+the document, or the largest scrollable box when the document does not scroll.
+Fields such as email, number and select keep their keys.

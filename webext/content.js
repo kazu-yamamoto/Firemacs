@@ -87,6 +87,22 @@
         return null;
     };
 
+    // Fields that take typed keys but are not edited by Firemacs
+    // (email, number, date, select, ...).  View keys must not steal them.
+    const NON_TYPING_TYPES = ['checkbox', 'radio', 'button', 'submit', 'reset',
+                              'image', 'file', 'range', 'color'];
+
+    const takesKeys = () => {
+        const el = deepActiveElement();
+        if (!el) {
+            return false;
+        }
+        return el.localName === 'select' || el.localName === 'textarea' ||
+            (el.localName === 'input' && !NON_TYPING_TYPES.includes(el.type)) ||
+            el.localName === 'embed' || el.localName === 'object' ||
+            el.isContentEditable;
+    };
+
     const isVisible = (el) => el.getClientRects().length > 0;
 
     const walkForm = (el, dir) => {
@@ -376,7 +392,7 @@
     };
 
     // Default keys from chrome/content/db/firemacs.yml (Edit and part of Common).
-    const Bindings = {
+    const EditBindings = {
         'C-p': 'PreviousLine',
         'C-n': 'NextLine',
         'C-b': 'PreviousChar',
@@ -406,6 +422,133 @@
         'M-w': 'Copy',
         'C-g': 'ResetMark',
         'C-x h': 'SelectAll'
+    };
+
+    ////////////////////////////////////////////////////////////////
+    //
+    // Scrolling
+    //
+    // The target is the scrollable ancestor of the last clicked or
+    // focused element, the document, or the largest scrollable element
+    // when the document itself does not scroll (e.g. app-like pages).
+    //
+
+    const LINE = 40;          // px per line
+
+    let lastClicked = null;
+    window.addEventListener('mousedown', (e) => {
+        lastClicked = e.composedPath()[0];
+    }, true);
+
+    const canScroll = (el, vertical) => {
+        const overflow = getComputedStyle(el)[vertical ? 'overflowY' : 'overflowX'];
+        if (overflow !== 'auto' && overflow !== 'scroll') {
+            return false;
+        }
+        return vertical ? el.scrollHeight > el.clientHeight
+                        : el.scrollWidth > el.clientWidth;
+    };
+
+    const rootCanScroll = (root, vertical) => vertical
+        ? root.scrollHeight > root.clientHeight
+        : root.scrollWidth > root.clientWidth;
+
+    const largestScrollable = (vertical) => {
+        let best = null;
+        let area = 0;
+        for (const el of document.querySelectorAll('body *')) {
+            const a = el.clientWidth * el.clientHeight;
+            if (a > area && canScroll(el, vertical)) {
+                best = el;
+                area = a;
+            }
+        }
+        return best;
+    };
+
+    const scrollTarget = (vertical) => {
+        const root = document.scrollingElement || document.documentElement;
+        let el = (lastClicked && lastClicked.isConnected) ? lastClicked
+                                                          : deepActiveElement();
+        for (; el && el !== root && el !== document.body; el = el.parentElement) {
+            if (el.nodeType === Node.ELEMENT_NODE && canScroll(el, vertical)) {
+                return el;
+            }
+        }
+        if (rootCanScroll(root, vertical)) {
+            return root;
+        }
+        return largestScrollable(vertical) || root;
+    };
+
+    const scrollByLines = (dx, dy) => () => {
+        scrollTarget(dy !== 0).scrollBy({left: dx * LINE, top: dy * LINE, behavior: 'instant'});
+    };
+
+    const scrollByPage = (dir) => () => {
+        const el = scrollTarget(true);
+        const root = document.scrollingElement || document.documentElement;
+        const height = el === root ? window.innerHeight : el.clientHeight;
+        el.scrollBy({top: dir * Math.max(height - 2 * LINE, LINE), behavior: 'instant'});
+    };
+
+    const scrollToEdge = (dir) => () => {
+        const el = scrollTarget(true);
+        el.scrollTo({top: dir > 0 ? el.scrollHeight : 0, behavior: 'instant'});
+    };
+
+    // Tabs and history are handled by the background script.
+    const background = (command, arg) => () => {
+        browser.runtime.sendMessage({command, arg});
+    };
+
+    const ViewCommands = {
+        ScrollLineUp:     scrollByLines(0, -1),
+        ScrollLineDown:   scrollByLines(0, 1),
+        ViScrollLineUp:   scrollByLines(0, -1),
+        ViScrollLineDown: scrollByLines(0, 1),
+        ViScrollLeft:     scrollByLines(-1, 0),
+        ViScrollRight:    scrollByLines(1, 0),
+        ViScrollPageUp:   scrollByPage(-1),
+        ViScrollPageDown: scrollByPage(1),
+        ScrollPageUp:     scrollByPage(-1),
+        ScrollPageDown:   scrollByPage(1),
+        ViScrollTop:      scrollToEdge(-1),
+        ViScrollBottom:   scrollToEdge(1),
+        ScrollTop:        scrollToEdge(-1),
+        ScrollBottom:     scrollToEdge(1),
+        PreviousTab:      background('moveTab', -1),
+        NextTab:          background('moveTab', 1),
+        ViPreviousTab:    background('moveTab', -1),
+        ViNextTab:        background('moveTab', 1),
+        PreviousPage:     background('goBack'),
+        NextPage:         background('goForward'),
+        ReloadPage:       background('reload')
+    };
+
+    // View keys from firemacs.yml, plus C-v/M-v of Common.
+    const ViewBindings = {
+        'C-p': 'ScrollLineUp',
+        'C-n': 'ScrollLineDown',
+        'C-b': 'PreviousTab',
+        'C-f': 'NextTab',
+        'k': 'ViScrollLineUp',
+        'j': 'ViScrollLineDown',
+        'H': 'ViScrollLeft',
+        'L': 'ViScrollRight',
+        'h': 'ViPreviousTab',
+        'l': 'ViNextTab',
+        'b': 'ViScrollPageUp',
+        'u': 'ViScrollPageDown',
+        'M-v': 'ScrollPageUp',
+        'C-v': 'ScrollPageDown',
+        'B': 'PreviousPage',
+        'F': 'NextPage',
+        'R': 'ReloadPage',
+        '<': 'ViScrollTop',
+        '>': 'ViScrollBottom',
+        'M-<': 'ScrollTop',
+        'M->': 'ScrollBottom'
     };
 
     ////////////////////////////////////////////////////////////////
@@ -502,8 +645,8 @@
         if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'OS'].includes(e.key)) {
             return;
         }
-        const el = editableTarget();
-        if (!el) {
+        const el = editableTarget();       // null while viewing
+        if (!el && takesKeys()) {
             prefix = '';
             escPending = false;
             return;
@@ -511,7 +654,9 @@
         if (!escPending && isEscape(e)) {
             escPending = true;
             echo(prefix + 'ESC-');
-            consume(e);
+            if (el || e.ctrlKey) {
+                consume(e);      // a plain ESC still reaches the page while viewing
+            }
             return;
         }
         const k = keyName(e);
@@ -530,12 +675,18 @@
         const full = prefix + k;
         prefix = '';
         escPending = false;
-        const name = Bindings[full];
+        const name = (el ? EditBindings : ViewBindings)[full];
         if (!name) {
             if (full.startsWith('C-x ')) {
                 echo(full + ' is undefined');
                 consume(e);
             }
+            lastCommand = null;
+            return;
+        }
+        if (!el) {
+            ViewCommands[name]();
+            consume(e);
             lastCommand = null;
             return;
         }

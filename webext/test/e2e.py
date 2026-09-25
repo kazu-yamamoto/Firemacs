@@ -147,8 +147,9 @@ BUTTON = "const b = document.getElementById('%s');" % BUTTON_ID
 
 
 class Tests:
-    def __init__(self, wd):
+    def __init__(self, wd, base):
         self.wd = wd
+        self.base = base
         self.failed = 0
         self.passed = 0
 
@@ -264,6 +265,88 @@ class Tests:
         c('button: enabled', self.click_button(), ['Firemacs enabled', False])
         c('enabled again: C-e', t(H, 1, 'C-e')[:3], [H, 5, 5])
 
+    def goto(self, page):
+        self.wd.call('WebDriver:Navigate', {'url': self.base + page})
+        time.sleep(0.5)
+
+    def chrome_js(self, script):
+        self.wd.call('Marionette:SetContext', {'value': 'chrome'})
+        try:
+            return self.wd.js(script)
+        finally:
+            self.wd.call('Marionette:SetContext', {'value': 'content'})
+
+    def click(self, selector):
+        el = self.wd.call('WebDriver:FindElement', {'using': 'css selector', 'value': selector})
+        self.wd.call('WebDriver:ElementClick', {'id': list(el.values())[0]})
+
+    def run_view(self):
+        wd, c = self.wd, self.check
+        pos = lambda: wd.js('return [scrollX, scrollY];')
+        reset = lambda: wd.js('document.activeElement.blur(); scrollTo(0, 0);')
+
+        self.goto('view.html')
+        page = wd.js('return innerHeight;') - 80
+        bottom = wd.js('return scrollMaxY;')
+        reset(); wd.keys('j', 'j'); c('view j', pos(), [0, 80])
+        wd.keys('k'); c('view k', pos(), [0, 40])
+        reset(); wd.keys('C-n'); c('view C-n', pos(), [0, 40])
+        wd.keys('C-p'); c('view C-p', pos(), [0, 0])
+        reset(); wd.keys('L', 'L'); c('view L', pos(), [80, 0])
+        wd.keys('H'); c('view H', pos(), [40, 0])
+        reset(); wd.keys('u'); c('view u', pos(), [0, page])
+        wd.keys('b'); c('view b', pos(), [0, 0])
+        reset(); wd.keys('C-v', 'C-v', 'M-v'); c('view C-v C-v M-v', pos(), [0, page])
+        reset(); wd.keys('>'); c('view >', pos(), [0, bottom])
+        wd.keys('<'); c('view <', pos(), [0, 0])
+        reset(); wd.keys('M->'); c('view M->', pos(), [0, bottom])
+        wd.keys('ESC', '<'); c('view ESC <', pos(), [0, 0])
+
+        reset()
+        wd.js("document.querySelector('#mail').focus();")
+        wd.keys('j', 'k', 'l')
+        c('view keys typed into email field',
+          [wd.js("return document.querySelector('#mail').value;"), pos()], ['jkl', [0, 0]])
+
+        # A page whose document does not scroll.
+        self.goto('app.html')
+        top = lambda: wd.js("return ['#side', '#main'].map(s => document.querySelector(s).scrollTop);")
+        wd.js('document.activeElement.blur();')
+        wd.keys('j'); c('app: j scrolls the largest scroller', top(), [0, 40])
+        self.click('#side')
+        wd.keys('j', 'j'); c('app: j scrolls the clicked scroller', top(), [80, 40])
+
+        # Tabs
+        self.goto('view.html')
+        first = wd.call('WebDriver:GetWindowHandle')
+        second = wd.call('WebDriver:NewWindow', {'type': 'tab'})['handle']
+        selected = lambda: self.chrome_js('return gBrowser.tabs.indexOf(gBrowser.selectedTab);')
+        for handle, key, want in [(second, 'l', 0), (first, 'h', 1),
+                                  (second, 'C-f', 0), (first, 'C-b', 1)]:
+            wd.call('WebDriver:SwitchToWindow', {'handle': handle})
+            if handle == second and wd.js('return location.href;') == 'about:blank':
+                self.goto('view.html')
+            wd.js('document.activeElement.blur();')
+            wd.keys(key)
+            time.sleep(0.3)
+            c('tab %s from %d' % (key, 1 - want), selected(), want)
+        wd.call('WebDriver:SwitchToWindow', {'handle': second})
+        wd.call('WebDriver:CloseWindow')
+        wd.call('WebDriver:SwitchToWindow', {'handle': first})
+
+        # History
+        self.goto('index.html')
+        self.goto('view.html')
+        wd.js('document.activeElement.blur();')
+        wd.keys('B'); time.sleep(1)
+        c('B goes back', wd.js('return location.pathname;'), '/index.html')
+        wd.js('document.activeElement.blur();')
+        wd.keys('F'); time.sleep(1)
+        c('F goes forward', wd.js('return location.pathname;'), '/view.html')
+        wd.js('window.marker = 1; document.activeElement.blur();')
+        wd.keys('R'); time.sleep(1)
+        c('R reloads', wd.js('return typeof window.marker;'), 'undefined')
+
     def click_button(self):
         """Click the toolbar button and return [tooltip, gray icon?]."""
         wd = self.wd
@@ -310,8 +393,9 @@ def main():
         mn.call('Addon:Install', {'path': EXT, 'temporary': True})
         mn.call('WebDriver:Navigate', {'url': 'http://127.0.0.1:%d/index.html' % http_port})
         time.sleep(0.5)
-        tests = Tests(mn)
+        tests = Tests(mn, 'http://127.0.0.1:%d/' % http_port)
         tests.run()
+        tests.run_view()
         print('\n%d passed, %d failed' % (tests.passed, tests.failed))
         return 1 if tests.failed else 0
     finally:

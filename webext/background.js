@@ -28,3 +28,32 @@ browser.browserAction.onClicked.addListener(async () => {
 
 // The background page is an event page, so it runs again on each wake-up.
 isEnabled().then(showStatus);
+
+////////////////////////////////////////////////////////////////
+//
+// Commands from content scripts that need the tabs API.
+//
+
+const moveTab = async (tab, dir) => {
+    const tabs = (await browser.tabs.query({windowId: tab.windowId, hidden: false}))
+        .sort((a, b) => a.index - b.index);
+    const i = tabs.findIndex(t => t.id === tab.id);
+    const next = tabs[(i + dir + tabs.length) % tabs.length];
+    if (next.id !== tab.id) {
+        await browser.tabs.update(next.id, {active: true});
+    }
+};
+
+const TabCommands = {
+    moveTab,
+    goBack:    (tab) => browser.tabs.goBack(tab.id),
+    goForward: (tab) => browser.tabs.goForward(tab.id),
+    reload:    (tab) => browser.tabs.reload(tab.id)
+};
+
+browser.runtime.onMessage.addListener((msg, sender) => {
+    const command = TabCommands[msg.command];
+    if (command && sender.tab) {
+        return command(sender.tab, msg.arg);
+    }
+});
