@@ -153,7 +153,10 @@ return [el.innerText.replace(/\\n$/, ''), r.toString().length, s.toString()];
 """
 
 
-BUTTON_ID = 'firemacs-prototype_mew_org-BAP'   # the button inside the toolbar item
+with open(os.path.join(EXT, 'manifest.json')) as _f:
+    ADDON_ID = json.load(_f)['browser_specific_settings']['gecko']['id']
+# The button inside the toolbar item; Firefox's makeWidgetId() of the ID.
+BUTTON_ID = re.sub(r'[^a-z0-9_-]', '_', ADDON_ID.lower()) + '-BAP'
 BUTTON = "const b = document.getElementById('%s');" % BUTTON_ID
 
 
@@ -587,8 +590,8 @@ class Tests:
         wd.call('WebDriver:SwitchToWindow', {'handle': first})
 
     def options_url(self):
-        host = self.chrome_js("return WebExtensionPolicy.getByID("
-                              "'firemacs-prototype@mew.org').mozExtensionHostname;")
+        host = self.chrome_js("return WebExtensionPolicy.getByID(%s).mozExtensionHostname;"
+                              % json.dumps(ADDON_ID))
         return 'moz-extension://%s/options.html' % host
 
     def open_options(self):
@@ -727,7 +730,7 @@ class Tests:
         c('EditOnly: no view/common keys', wd.js('return scrollY;'), 0)
 
         tooltip = lambda: self.chrome_js(
-            "return document.getElementById('firemacs-prototype_mew_org-BAP')"
+            "return document.getElementById(%s)" % json.dumps(BUTTON_ID) +
             ".getAttribute('tooltiptext');")
         self.settings(options={'TurnoffRegex': 'view\\.html'})
         c('TurnoffRegex: other pages work', self.text(H, 0, 'C-f')[:3], [H, 1, 1])

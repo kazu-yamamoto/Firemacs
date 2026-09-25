@@ -2,9 +2,12 @@
 
 Firemacs for the current Firefox (WebExtensions). All commands of the
 original that extensions can implement are here: Edit, View, Common,
-incremental search, tab switching and the options page. It is still a
-prototype: not signed, and not on addons.mozilla.org.
+incremental search, tab switching and the options page. It is not signed
+or on addons.mozilla.org yet.
 
+- `manifest.json`: ID `@firemacs`, Firefox 140 and later; collects no data
+- `build.sh`: makes `../work/firemacs-<version>.zip` to submit to addons.mozilla.org
+- `icon.svg`: the source of `icon48.png` and `icon96.png`
 - `defaults.js`: default options and keys (from `firemacs.yml`)
 - `options.html`, `options.js`: the options page
 - `text.js`: pure text operations for `<textarea>`/`<input>`

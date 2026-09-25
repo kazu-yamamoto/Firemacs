@@ -1,16 +1,22 @@
 {
     "manifest_version": 2,
-    "name": "Firemacs (prototype)",
-    "version": "0.1",
-    "description": "Prototype of Emacs editing keybindings as a WebExtension",
+    "name": "Firemacs",
+    "version": "5.0",
+    "description": "Emacs keybindings for Firefox: editing in text fields, scrolling and tabs elsewhere, incremental search and tab switching.",
+    "homepage_url": "https://github.com/kazu-yamamoto/Firemacs",
     "icons": {
         "16": "icon16.png",
-        "32": "icon32.png"
+        "32": "icon32.png",
+        "48": "icon48.png",
+        "96": "icon96.png"
     },
     "browser_specific_settings": {
         "gecko": {
-            "id": "firemacs-prototype@mew.org",
-            "strict_min_version": "115.0"
+            "id": "@firemacs",
+            "strict_min_version": "140.0",
+            "data_collection_permissions": {
+                "required": ["none"]
+            }
         }
     },
     "browser_action": {

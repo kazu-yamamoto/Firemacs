@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////
 //
-// Firemacs prototype: Emacs editing keys in text fields.
+// Firemacs: key handling and commands (the content script).
 //
 // <textarea>/<input> are edited through selectionStart/End because
 // Selection.modify() does not reach inside text controls.

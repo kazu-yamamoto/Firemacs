@@ -4,8 +4,8 @@ Emacs keybindings for Firefox: Emacs editing in text fields, and
 Emacs/vi-like scrolling and tab switching elsewhere.
 
 Firemacs is now a WebExtension, in [`webext/`](webext/). It runs on
-Firefox 115 and later (tested with Firefox 156 on macOS, Windows 11 and
-Ubuntu 24.04). It is a prototype and is not on addons.mozilla.org yet.
+Firefox 140 and later (tested with Firefox 156 on macOS, Windows 11 and
+Ubuntu 24.04). It is not on addons.mozilla.org yet.
 
 The rest of this repository (`chrome/`, `components/`, `install.rdf`) is the
 original XUL extension for Firefox 30 and earlier. It does not run on
@@ -45,6 +45,7 @@ See [`webext/README.md`](webext/README.md) for the full list.
 ## Development
 
     python3 webext/test/e2e.py            # end-to-end tests (Marionette)
+    webext/build.sh                       # work/firemacs-<version>.zip for AMO
 
 `webext/test/reserved_keys.py` checks which keys reach Firemacs with real OS
 input on Windows and Linux.
@@ -52,3 +53,7 @@ input on Windows and Linux.
 ## Author
 
 Kazu Yamamoto
+
+## License
+
+BSD 3-Clause. See [`LICENSE`](LICENSE).
