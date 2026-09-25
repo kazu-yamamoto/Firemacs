@@ -1,7 +1,9 @@
-# Firemacs WebExtension prototype
+# Firemacs WebExtension
 
-A prototype to see whether the Edit keybindings of Firemacs can be
-implemented on the current Firefox (WebExtensions).
+Firemacs for the current Firefox (WebExtensions). All commands of the
+original that extensions can implement are here: Edit, View, Common,
+incremental search, tab switching and the options page. It is still a
+prototype: not signed, and not on addons.mozilla.org.
 
 - `defaults.js`: default options and keys (from `firemacs.yml`)
 - `options.html`, `options.js`: the options page
