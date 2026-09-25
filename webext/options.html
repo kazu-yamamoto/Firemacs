@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firemacs Options</title>
+<style>
+  :root {
+    --bg: #fff; --fg: #1b1b1f; --muted: #6b6b75; --line: #e2e2e8;
+    --field: #fff; --accent: #0b63ce; --error: #c5221f; --error-bg: #fdecea;
+    --bar: rgba(255, 255, 255, .94);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1b22; --fg: #e8e8ee; --muted: #a0a0ab; --line: #3a3944;
+      --field: #2b2a33; --accent: #6ea8ff; --error: #ff8a80; --error-bg: #3b2224;
+      --bar: rgba(28, 27, 34, .94);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 96px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .note { color: var(--muted); margin: 0 0 4px; }
+  code, input.key, input.text { font-family: ui-monospace, Menlo, monospace; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  td.name { width: 30%; white-space: nowrap; }
+  td.key { width: 22%; }
+  td.desc { color: var(--muted); }
+  input.key, input.text { width: 100%; padding: 3px 6px; color: var(--fg); background: var(--field);
+                          border: 1px solid var(--line); border-radius: 4px; font-size: 13px; }
+  input.text { max-width: 320px; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input.invalid { border-color: var(--error); background: var(--error-bg); }
+  .changed td.name::after { content: " *"; color: var(--accent); }
+  .problem { color: var(--error); font-size: 12px; }
+  label.check { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
+  .opt { padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .opt .label { display: block; margin-bottom: 2px; }
+  footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bar);
+           border-top: 1px solid var(--line); backdrop-filter: blur(6px); }
+  footer .inner { max-width: 760px; margin: 0 auto; padding: 10px 16px;
+                  display: flex; gap: 8px; align-items: center; }
+  #status { flex: 1; color: var(--muted); }
+  #status.error { color: var(--error); }
+  button { font: inherit; padding: 5px 14px; border-radius: 4px; border: 1px solid var(--line);
+           background: var(--field); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  @media (max-width: 560px) {
+    td.desc { display: none; }
+    td.name { width: auto; white-space: normal; }
+    td.key { width: 40%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Firemacs</h1>
+  <p class="note">Emacs keybindings for Firefox. Changes apply to open pages when saved.</p>
+  <p class="note">Keys look like <code>C-f</code>, <code>M-f</code>, <code>C-M-f</code>,
+    <code>j</code>, <code>SPC</code>, <code>DEL</code>, <code>up</code>;
+    a two-key sequence is separated by a space, as <code>C-x u</code>.
+    Write <code>C-M-</code>, not <code>M-C-</code>. An empty key disables the command.</p>
+  <p class="note"><code>M-</code> is <code>C-[</code>, and also ESC, Alt (Option) or Meta (Command)
+    if checked below. Keys starting with <code>C-x</code> follow the prefix key.</p>
+
+  <h2>Options</h2>
+  <div id="options"></div>
+
+  <h2>Edit <span class="note">— in text fields</span></h2>
+  <table id="Edit"></table>
+
+  <h2>View <span class="note">— outside text fields</span></h2>
+  <table id="View"></table>
+
+  <h2>Common <span class="note">— in both</span></h2>
+  <table id="Common"></table>
+</main>
+<footer>
+  <div class="inner">
+    <span id="status"></span>
+    <button id="reset">Reset to defaults</button>
+    <button id="save" class="primary">Save</button>
+  </div>
+</footer>
+<script src="defaults.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

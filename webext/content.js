@@ -15,13 +15,13 @@
 
     const T = FiremacsText;
 
-    const options = {
-        useEscape: true,   // ESC as M-
-        useAlt: true,      // Alt/Option as M-
-        walkForm: true     // C-n/C-p at the end/beginning moves to the next field
-    };
+    // Settings from defaults.js and storage; see applySettings().
+    let options = Object.assign({}, FiremacsDefaults.options);
+    const bindings = {Edit: {}, View: {}, Common: {}};   // key -> command name
+    let prefixKeys = new Set();
 
     let enabled = true;       // toggled by the toolbar button
+    let turnedOff = false;    // TurnoffRegex matches this page
     let prefix = '';          // 'C-x ' while waiting for the second key
     let escPending = false;
     let lastCommand = null;   // for C-n/C-p goal column and C-k appending
@@ -265,7 +265,7 @@
             return;
         }
         const edge = dir > 0 ? t.length : 0;
-        if (p === edge && options.walkForm && markOf(el) === null) {
+        if (p === edge && options.WalkForm && markOf(el) === null) {
             walkForm(el, dir);
         } else {
             setPoint(el, edge);
@@ -338,6 +338,7 @@
         ArrowNextLine:     (el) => marks.has(el) ? Commands.NextLine(el) : false,
         ArrowPreviousLine: (el) => marks.has(el) ? Commands.PreviousLine(el) : false,
 
+        SetMarkAlias: (el) => Commands.SetMark(el),
         SetMark: (el) => {
             if (isTextControl(el)) {
                 const p = pointOf(el);
@@ -409,35 +410,6 @@
         }
     };
 
-    // Edit keys from chrome/content/db/firemacs.yml.
-    const EditBindings = {
-        'C-p': 'PreviousLine',
-        'C-n': 'NextLine',
-        'C-b': 'PreviousChar',
-        'C-f': 'NextChar',
-        'up': 'ArrowPreviousLine',
-        'down': 'ArrowNextLine',
-        'left': 'ArrowPreviousChar',
-        'right': 'ArrowNextChar',
-        'C-a': 'BeggingOfLine',
-        'C-e': 'EndOfLine',
-        'C-SPC': 'SetMark',
-        'C-i': 'SetMark',
-        'C-w': 'KillRegion',
-        'C-k': 'KillLineForward',
-        'C-u': 'KillLineBackward',
-        'C-y': 'Paste',
-        'C-d': 'DeleteCharForward',
-        'C-h': 'DeleteCharBackward',
-        'C-x u': 'Undo',
-        'C-o': 'OpenLine',
-        'M-f': 'NextWord',
-        'M-b': 'PreviousWord',
-        'M-d': 'DeleteWordForward',
-        'M-DEL': 'DeleteWordBackward',
-        'M-<': 'MoveTop',
-        'M->': 'MoveBottom'
-    };
 
     ////////////////////////////////////////////////////////////////
     //
@@ -539,28 +511,6 @@
         ReloadPage:       background('reload')
     };
 
-    // View keys from firemacs.yml.
-    const ViewBindings = {
-        'C-p': 'ScrollLineUp',
-        'C-n': 'ScrollLineDown',
-        'C-b': 'PreviousTab',
-        'C-f': 'NextTab',
-        'k': 'ViScrollLineUp',
-        'j': 'ViScrollLineDown',
-        'H': 'ViScrollLeft',
-        'L': 'ViScrollRight',
-        'h': 'ViPreviousTab',
-        'l': 'ViNextTab',
-        'b': 'ViScrollPageUp',
-        'u': 'ViScrollPageDown',
-        'B': 'PreviousPage',
-        'F': 'NextPage',
-        'R': 'ReloadPage',
-        '<': 'ViScrollTop',
-        '>': 'ViScrollBottom',
-        'M-<': 'ScrollTop',
-        'M->': 'ScrollBottom'
-    };
 
     ////////////////////////////////////////////////////////////////
     //
@@ -985,7 +935,7 @@
             e.preventDefault();
             return;
         }
-        const edit = EditBindings[name];
+        const edit = bindings.Edit[name];
         if (edit && edit !== 'NextLine' && edit !== 'PreviousLine') {
             e.preventDefault();
             Commands[edit](mini.input());
@@ -1056,36 +1006,6 @@
         }
     };
 
-    // Common keys from firemacs.yml.  C-M-b was bound to both CmPreviousTab
-    // and CopyTitleAndUrl; the latter won in the original, and does here.
-    const CommonBindings = {
-        'C-x b': 'AllTabs',
-        'C-s': 'SearchForward',
-        'C-r': 'SearchBackword',
-        'M-v': 'ScrollPageUp',
-        'C-v': 'ScrollPageDown',
-        'C-g': 'ResetMark',
-        'C-x l': 'JumpURLBar',
-        'C-x g': 'JumpSearchBar',
-        'C-x .': 'FocusBody',
-        'C-x t': 'JumpInput',
-        'C-x s': 'JumpSubmit',
-        'C-M-f': 'CmNextTab',
-        'C-x k': 'CloseTab',
-        'C-x C-f': 'OpenFile',
-        'M-w': 'Copy',
-        'M-n': 'NextButton',
-        'M-p': 'PreviousButton',
-        'M-k': 'KillAccessKeys',
-        'C-m': 'NewLine',
-        'C-M-u': 'CopyUrl',
-        'C-M-t': 'CopyTitle',
-        'C-M-b': 'CopyTitleAndUrl',
-        'C-x C-e': 'WebSearch',
-        'C-x C-a': 'MapSearch',
-        'C-x C-s': 'SavePage',
-        'C-x h': 'SelectAll'
-    };
 
     ////////////////////////////////////////////////////////////////
     //
@@ -1132,23 +1052,23 @@
     };
 
     const keyName = (e) => {
-        if (e.metaKey) {
+        if (e.metaKey && !options.UseMeta) {
             return null;                    // Cmd/Win: let the browser win
         }
-        if (e.altKey && !options.useAlt) {
+        if (e.altKey && !options.UseAlt) {
             return null;
         }
         const k = baseKey(e);
         if (k === null) {
             return null;
         }
-        const meta = e.altKey || escPending;
+        const meta = e.altKey || e.metaKey || escPending;
         return (e.ctrlKey ? 'C-' : '') + (meta ? 'M-' : '') + k;
     };
 
     const isEscape = (e) =>
         (e.ctrlKey && (e.key === '[' || e.code === 'BracketLeft')) ||
-        (options.useEscape && e.key === 'Escape' && !e.ctrlKey && !e.altKey);
+        (options.UseEscape && e.key === 'Escape' && !e.ctrlKey && !e.altKey);
 
     ////////////////////////////////////////////////////////////////
     //
@@ -1172,7 +1092,7 @@
     };
 
     const onKeyDown = (e) => {
-        if (!enabled) {
+        if (!enabled || turnedOff) {
             return;
         }
         if (mini.isFocused()) {
@@ -1190,7 +1110,7 @@
             return;
         }
         const el = editableTarget();       // null while viewing
-        if (!el && takesKeys()) {
+        if (!el && (takesKeys() || options.EditOnly)) {
             prefix = '';
             escPending = false;
             return;
@@ -1209,18 +1129,18 @@
             escPending = false;
             return;
         }
-        if (prefix === '' && k === 'C-x') {
-            prefix = 'C-x ';
+        if (prefix === '' && prefixKeys.has(k)) {
+            prefix = k + ' ';
             escPending = false;
-            echo('C-x-');
+            echo(k + '-');
             consume(e);
             return;
         }
         const full = prefix + k;
         prefix = '';
         escPending = false;
-        const name = (el ? EditBindings : ViewBindings)[full];
-        const common = CommonCommands[CommonBindings[full]];
+        const name = (el ? bindings.Edit : bindings.View)[full];
+        const common = options.EditOnly ? null : CommonCommands[bindings.Common[full]];
         if (!name && common) {
             common(el);
             consume(e);
@@ -1228,7 +1148,7 @@
             return;
         }
         if (!name) {
-            if (full.startsWith('C-x ')) {
+            if (full.includes(' ')) {
                 echo(full + ' is undefined');
                 consume(e);
             }
@@ -1271,9 +1191,83 @@
         }
     };
     browser.storage.local.get('enabled').then(r => setEnabled(r.enabled));
+
+    ////////////////////////////////////////////////////////////////
+    //
+    // Settings
+    //
+
+    const urlMatches = (regex) => {
+        if (!regex) {
+            return false;
+        }
+        try {
+            return new RegExp(regex).test(location.href);
+        } catch (_) {
+            return false;                   // invalid regex
+        }
+    };
+
+    const applySettings = (settings) => {
+        options = settings.options;
+        const xprefix = FiremacsDefaults.isValidKey(options.XPrefix) &&
+                        !options.XPrefix.includes(' ') ? options.XPrefix : 'C-x';
+        for (const group of Object.keys(bindings)) {
+            bindings[group] = {};
+        }
+        prefixKeys = new Set();
+        for (const [group, name] of FiremacsDefaults.commands) {
+            let key = (settings.keys[name] || '').trim().replace(/\s+/g, ' ');
+            if (key === '' || !FiremacsDefaults.isValidKey(key)) {
+                continue;
+            }
+            if (key.startsWith('C-x ')) {
+                key = xprefix + key.slice(3);
+            }
+            bindings[group][key] = name;
+            const parts = key.split(' ');
+            if (parts.length === 2) {
+                prefixKeys.add(parts[0]);
+            }
+        }
+        turnedOff = urlMatches(options.TurnoffRegex);
+        if (window === window.top) {
+            browser.runtime.sendMessage({command: 'pageStatus', arg: turnedOff})
+                .catch(() => {});
+        }
+    };
+
+    const killAccessKeysIfMatched = () => {
+        if (!turnedOff && urlMatches(options.AccessRegex)) {
+            const nodes = document.querySelectorAll('[accesskey]');
+            nodes.forEach(n => n.removeAttribute('accesskey'));
+            if (nodes.length > 0) {
+                echo(nodes.length + ' accesskeys were canceled');
+            }
+        }
+    };
+
+    applySettings({options, keys: Object.fromEntries(
+        FiremacsDefaults.commands.map(([, name, key]) => [name, key]))});
+    const loaded = FiremacsDefaults.load().then(applySettings);
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            loaded.then(killAccessKeysIfMatched);
+        });
+    } else {
+        loaded.then(killAccessKeysIfMatched);
+    }
+
     browser.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local' && 'enabled' in changes) {
+        if (area !== 'local') {
+            return;
+        }
+        if ('enabled' in changes) {
             setEnabled(changes.enabled.newValue);
+        }
+        if ('options' in changes || 'keys' in changes) {
+            FiremacsDefaults.load().then(applySettings);
         }
     });
 

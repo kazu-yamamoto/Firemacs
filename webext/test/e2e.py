@@ -13,6 +13,7 @@ import functools
 import http.server
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -25,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 EXT = os.path.dirname(HERE)
 FIREFOX = '/Applications/Firefox.app/Contents/MacOS/firefox'
 
-KEYS = {'C': '\ue009', 'M': '\ue00a', 'RET': '\ue006',
+KEYS = {'C': '\ue009', 'M': '\ue00a', 'Cmd': '\ue03d', 'RET': '\ue006',
         'ESC': '\ue00c', 'DEL': '\ue003', 'SPC': ' ',
         'up': '\ue013', 'down': '\ue015', 'left': '\ue012', 'right': '\ue014'}
 
@@ -548,6 +549,138 @@ class Tests:
             wd.call('WebDriver:CloseWindow')
         wd.call('WebDriver:SwitchToWindow', {'handle': first})
 
+    def options_url(self):
+        host = self.chrome_js("return WebExtensionPolicy.getByID("
+                              "'firemacs-prototype@mew.org').mozExtensionHostname;")
+        return 'moz-extension://%s/options.html' % host
+
+    def open_options(self):
+        self.wd.call('WebDriver:Navigate', {'url': self.options_url()})
+        time.sleep(0.5)
+
+    def settings(self, options=None, keys=None):
+        """Store settings directly, then come back to index.html."""
+        self.open_options()
+        self.wd.call('WebDriver:ExecuteAsyncScript', {'script': """
+            const done = arguments[arguments.length - 1];
+            browser.storage.local.set({options: arguments[0], keys: arguments[1]}).then(done);
+        """, 'args': [options or {}, keys or {}]})
+        self.goto('index.html')
+
+    def run_settings(self):
+        wd, c = self.wd, self.check
+        H = 'hello\nworld'
+        put = lambda kind, name, value: wd.js("""
+            const el = document.getElementById(arguments[0] + '-' + arguments[1]);
+            if (el.type === 'checkbox') el.checked = arguments[2]; else el.value = arguments[2];
+            el.dispatchEvent(new Event('input', {bubbles: true}));
+        """, kind, name, value)
+        state = lambda name: wd.js("""
+            return [document.getElementById('problem-' + arguments[0]).textContent,
+                    document.getElementById('save').disabled];
+        """, name)
+
+        # The options page
+        self.goto('index.html')
+        page = wd.call('WebDriver:GetWindowHandle')
+        opts = wd.call('WebDriver:NewWindow', {'type': 'tab'})['handle']
+        wd.call('WebDriver:SwitchToWindow', {'handle': opts})
+        self.open_options()
+        commands = len(re.findall(r"^\s+\['(?:Edit|View|Common)',",
+                                  open(os.path.join(EXT, 'defaults.js')).read(), re.M))
+        c('options page lists every command',
+          wd.js('return document.querySelectorAll("tr").length;'), commands)
+        c('options page shows the defaults',
+          wd.js('return [document.getElementById("key-Undo").value,'
+                ' document.getElementById("opt-UseAlt").checked];'), ['C-x u', True])
+        c('nothing to save at first', state('NextChar'), ['', True])
+        put('key', 'NextChar', 'C-foo')
+        c('invalid key', state('NextChar'), ['Invalid key', True])
+        put('key', 'NextChar', 'C-b')
+        c('duplicate key', state('NextChar'), ['Also bound to PreviousChar', True])
+        put('key', 'NextChar', 'C-x')
+        c('prefix key', state('NextChar'), ['C-x is a prefix key', True])
+        put('opt', 'TurnoffRegex', '(')
+        c('invalid regex', state('opt-TurnoffRegex')[0].startswith('Invalid regular expression'), True)
+        put('opt', 'TurnoffRegex', '')
+        put('key', 'NextChar', 'C-t')
+        c('valid change can be saved', state('NextChar'), ['', False])
+        wd.js("document.getElementById('save').click();")
+        time.sleep(0.5)
+        c('saved', wd.js("return document.getElementById('status').textContent;"), 'Saved')
+        c('only differences are stored', wd.call('WebDriver:ExecuteAsyncScript', {'script': """
+            const done = arguments[arguments.length - 1];
+            browser.storage.local.get(null).then(s => done(s.keys));
+        """}), {'NextChar': 'C-t'})
+
+        # Applied to the page already open, without reloading it.
+        wd.call('WebDriver:SwitchToWindow', {'handle': page})
+        c('new key works in an open page', self.text(H, 0, 'C-t')[:3], [H, 1, 1])
+
+        wd.call('WebDriver:SwitchToWindow', {'handle': opts})
+        wd.js("document.getElementById('reset').click();")
+        c('reset restores defaults',
+          wd.js("return document.getElementById('key-NextChar').value;"), 'C-f')
+        wd.js("document.getElementById('save').click();")
+        time.sleep(0.5)
+        wd.call('WebDriver:CloseWindow')
+        wd.call('WebDriver:SwitchToWindow', {'handle': page})
+        c('default key back', self.text(H, 0, 'C-f')[:3], [H, 1, 1])
+
+        # Options
+        self.settings(keys={'NextWord': 'C-t'})
+        c('rebound: new key', self.text('foo bar', 0, 'C-t')[:3], ['foo bar', 3, 3])
+        c('rebound: old key unbound', self.text('foo bar', 0, 'M-f')[:3] != ['foo bar', 3, 3], True)
+
+        self.settings(keys={'NextWord': ''})
+        c('empty key disables', self.text('foo bar', 0, 'M-f')[:3] != ['foo bar', 3, 3], True)
+
+        self.settings(options={'XPrefix': 'C-t'})
+        c('XPrefix C-t: C-t u', self.text('foo bar', 3, 'C-k', 'C-t', 'u')[0], 'foo bar')
+        c('XPrefix C-t: C-t h', self.text(H, 3, 'C-t', 'h')[:3], [H, 0, 11])
+
+        self.settings(options={'UseEscape': False})
+        c('UseEscape off', self.text('foo bar', 0, 'ESC', 'f')[:3], ['ffoo bar', 1, 1])
+        c('UseEscape off: C-[ still works', self.text('foo bar', 0, 'C-[', 'f')[:3], ['foo bar', 3, 3])
+
+        self.settings(options={'UseAlt': False})
+        c('UseAlt off', self.text('foo bar', 0, 'M-f')[:3] != ['foo bar', 3, 3], True)
+
+        self.settings(options={'UseMeta': True})
+        c('UseMeta on: Cmd-f', self.text('foo bar', 0, 'Cmd-f')[:3], ['foo bar', 3, 3])
+
+        self.settings(options={'WalkForm': False})
+        c('WalkForm off', self.text('first input', 11, 'C-n', sel='#in1')[3], 'in1')
+
+        self.settings(options={'EditOnly': True})
+        c('EditOnly: edit keys work', self.text(H, 0, 'C-f')[:3], [H, 1, 1])
+        self.goto('view.html')
+        wd.js('document.activeElement.blur(); scrollTo(0, 0);')
+        wd.keys('j', 'C-v')
+        c('EditOnly: no view/common keys', wd.js('return scrollY;'), 0)
+
+        tooltip = lambda: self.chrome_js(
+            "return document.getElementById('firemacs-prototype_mew_org-BAP')"
+            ".getAttribute('tooltiptext');")
+        self.settings(options={'TurnoffRegex': 'view\\.html'})
+        c('TurnoffRegex: other pages work', self.text(H, 0, 'C-f')[:3], [H, 1, 1])
+        c('TurnoffRegex: icon on other pages', tooltip(), 'Firemacs enabled')
+        self.goto('view.html')
+        wd.js('document.activeElement.blur(); scrollTo(0, 0);')
+        wd.keys('j')
+        c('TurnoffRegex: turned off', wd.js('return scrollY;'), 0)
+        c('TurnoffRegex: icon in the tab', tooltip(), 'Firemacs turned off on this page')
+        self.goto('index.html')
+        c('TurnoffRegex: icon back', tooltip(), 'Firemacs enabled')
+
+        self.settings()
+        c('AccessRegex default keeps access keys',
+          wd.js("return document.querySelectorAll('[accesskey]').length;"), 1)
+        self.settings(options={'AccessRegex': 'index'})
+        c('AccessRegex kills access keys',
+          wd.js("return document.querySelectorAll('[accesskey]').length;"), 0)
+        self.settings()
+
     def select_text(self, selector, text):
         """Put text into the element and select it, with no field focused."""
         self.wd.js("""
@@ -608,6 +741,7 @@ def main():
         tests.run_view()
         tests.run_common()
         tests.run_minibuffer()
+        tests.run_settings()
         print('\n%d passed, %d failed' % (tests.passed, tests.failed))
         return 1 if tests.failed else 0
     finally:

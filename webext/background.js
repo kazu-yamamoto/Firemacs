@@ -4,14 +4,23 @@
 // The state is kept in storage.local and read by content scripts.
 //
 
+const ICON = {16: 'icon16.png', 32: 'icon32.png'};
+const GRAY = {16: 'icon16gray.png', 32: 'icon32gray.png'};
+
 const showStatus = (enabled) => {
-    browser.browserAction.setIcon({
-        path: enabled
-            ? {16: 'icon16.png', 32: 'icon32.png'}
-            : {16: 'icon16gray.png', 32: 'icon32gray.png'}
-    });
+    browser.browserAction.setIcon({path: enabled ? ICON : GRAY});
     browser.browserAction.setTitle({
         title: enabled ? 'Firemacs enabled' : 'Firemacs disabled'
+    });
+};
+
+// A page matching TurnoffRegex: gray only in that tab.
+// null resets the tab to the global icon and title.
+const showPageStatus = (tab, turnedOff) => {
+    browser.browserAction.setIcon({tabId: tab.id, path: turnedOff ? GRAY : null});
+    browser.browserAction.setTitle({
+        tabId: tab.id,
+        title: turnedOff ? 'Firemacs turned off on this page' : null
     });
 };
 
@@ -73,12 +82,30 @@ const TabCommands = {
                             b.lastAccessed - a.lastAccessed)
             .map(t => ({id: t.id, title: t.title, url: t.url}));
     },
-    activateTab: (tab, id) => browser.tabs.update(id, {active: true})
+    activateTab: (tab, id) => browser.tabs.update(id, {active: true}),
+    pageStatus: showPageStatus
 };
 
 browser.runtime.onMessage.addListener((msg, sender) => {
     const command = TabCommands[msg.command];
     if (command && sender.tab) {
         return command(sender.tab, msg.arg);
+    }
+});
+
+////////////////////////////////////////////////////////////////
+//
+// Right click on the toolbar button opens the options.
+//
+
+browser.menus.create({
+    id: 'firemacs-options',
+    title: 'Firemacs Options',
+    contexts: ['browser_action']
+}, () => void browser.runtime.lastError);
+
+browser.menus.onClicked.addListener((info) => {
+    if (info.menuItemId === 'firemacs-options') {
+        browser.runtime.openOptionsPage();
     }
 });

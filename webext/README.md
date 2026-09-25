@@ -3,10 +3,13 @@
 A prototype to see whether the Edit keybindings of Firemacs can be
 implemented on the current Firefox (WebExtensions).
 
+- `defaults.js`: default options and keys (from `firemacs.yml`)
+- `options.html`, `options.js`: the options page
 - `text.js`: pure text operations for `<textarea>`/`<input>`
 - `minibuffer.js`: the minibuffer (prompt, `<input>` and candidate list) at the bottom of the page
 - `content.js`: key handling and commands (content script, all frames)
-- `background.js`: the toolbar button toggles Firemacs on/off (gray icon when off)
+- `background.js`: the toolbar button toggles Firemacs on/off (gray icon when off),
+  right click opens the options; tabs, history, search and downloads
 - `test/*.html`: test pages
 - `test/e2e.py`: end-to-end test via Marionette (Python standard library only)
 
@@ -59,3 +62,12 @@ C-s/C-r go to the next/previous match, and wrap around after a failure.
 Search is smart-case, over the visible text; all matches are highlighted.
 C-x b lists tabs, most recently used first; space-separated words filter them,
 and C-n/C-p (C-s/C-r, arrows) choose one.
+
+## Options
+
+Right click the toolbar button, or about:addons, to open the options page.
+All options of the original Firemacs are available (UseEscape, UseAlt, UseMeta,
+XPrefix, AccessRegex, TurnoffRegex, WalkForm, EditOnly), and every key can be
+changed; an empty key disables the command.  Invalid keys, duplicates in a group
+and bad regular expressions are reported before saving.  Only the differences
+from the defaults are stored, and open pages pick up changes at once.
