@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Firemacs prototype test</title>
+<style>
+  body { font: 14px sans-serif; margin: 16px; }
+  textarea, input, [contenteditable] { display: block; width: 32em; margin: 8px 0; font: 14px monospace; }
+  [contenteditable] { border: 1px solid #888; min-height: 4em; padding: 2px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<p>Firemacs prototype: try C-f/C-b/C-n/C-p, C-a/C-e, C-SPC, C-w, M-w, C-k, C-y, C-x u, M-f/M-b, ESC f ...</p>
+<input id="in1" value="first input">
+<input id="in2" value="second input">
+<textarea id="ta" rows="6">hello
+world</textarea>
+<textarea id="narrow" rows="6" style="width: 8em">a long line that wraps several times in a narrow textarea</textarea>
+<div id="ce" contenteditable="true">hello
+world</div>
+<p id="log"></p>
+<script>
+  // Counts non-modifier keydown events that reach the page itself.
+  window.pageKeys = 0;
+  document.addEventListener('keydown', (e) => {
+    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) window.pageKeys++;
+  });
+</script>
+</body>
+</html>

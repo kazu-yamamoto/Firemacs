@@ -1,0 +1,41 @@
+{
+    "manifest_version": 2,
+    "name": "Firemacs (prototype)",
+    "version": "0.1",
+    "description": "Prototype of Emacs editing keybindings as a WebExtension",
+    "icons": {
+        "16": "icon16.png",
+        "32": "icon32.png"
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "firemacs-prototype@mew.org",
+            "strict_min_version": "115.0"
+        }
+    },
+    "browser_action": {
+        "default_icon": {
+            "16": "icon16.png",
+            "32": "icon32.png"
+        },
+        "default_title": "Firemacs enabled",
+        "default_area": "navbar"
+    },
+    "background": {
+        "scripts": ["background.js"],
+        "persistent": false
+    },
+    "permissions": [
+        "storage",
+        "clipboardRead",
+        "clipboardWrite"
+    ],
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["text.js", "content.js"],
+            "all_frames": true,
+            "run_at": "document_start"
+        }
+    ]
+}
