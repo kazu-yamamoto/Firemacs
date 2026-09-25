@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Firemacs app-like page test</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { display: flex; }
+  #side { width: 200px; overflow-y: auto; }
+  #main { flex: 1; overflow-y: auto; }
+  .tall { height: 5000px; }
+</style>
+</head>
+<body>
+<!-- The document does not scroll; #main (the largest) and #side do. -->
+<div id="side"><div class="tall">side</div></div>
+<div id="main"><div class="tall">main</div></div>
+</body>
+</html>
