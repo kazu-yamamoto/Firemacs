@@ -5,7 +5,7 @@ Emacs/vi-like scrolling and tab switching elsewhere.
 
 Firemacs is now a WebExtension, in [`webext/`](webext/). It runs on
 Firefox 140 and later (tested with Firefox 156 on macOS, Windows 11 and
-Ubuntu 24.04). It is not on addons.mozilla.org yet.
+Ubuntu 24.04).
 
 The rest of this repository (`chrome/`, `components/`, `install.rdf`) is the
 original XUL extension for Firefox 30 and earlier. It does not run on
@@ -13,12 +13,7 @@ Firefox 57 and later and is kept for history.
 
 ## Install
 
-Until Firemacs is signed and published, load it as a temporary add-on:
-
-1. Open `about:debugging#/runtime/this-firefox`
-2. Click "Load Temporary Add-on..." and choose `webext/manifest.json`
-
-A temporary add-on is removed when Firefox quits.
+Install Firemacs from [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/firemacs/).
 
 ## Keys
 
@@ -43,6 +38,10 @@ See [`webext/README.md`](webext/README.md) for the full list.
   (`about:` pages, addons.mozilla.org, the PDF viewer, ...).
 
 ## Development
+
+To try the source, load it as a temporary add-on: open
+`about:debugging#/runtime/this-firefox`, click "Load Temporary Add-on..."
+and choose `webext/manifest.json`. It is removed when Firefox quits.
 
     python3 webext/test/e2e.py            # end-to-end tests (Marionette)
     webext/build.sh                       # work/firemacs-<version>.zip for AMO
