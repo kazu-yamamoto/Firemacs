@@ -7,6 +7,8 @@ Firemacs is now a WebExtension, in [`webext/`](webext/). It runs on
 Firefox 140 and later (tested with Firefox 156 on macOS, Windows 11 and
 Ubuntu 24.04).
 
+The manual is on [mew.org](https://www.mew.org/~kazu/proj/firemacs/en/).
+
 The rest of this repository (`chrome/`, `components/`, `install.rdf`) is the
 original XUL extension for Firefox 30 and earlier. It does not run on
 Firefox 57 and later and is kept for history.
